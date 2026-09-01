@@ -16,8 +16,10 @@
     --ink: #1c2320;
     --ink-dim: #5c655f;
     --border: #dcded9;
-    --accent: #2f6f4f;
-    --accent-soft: #e3efe7;
+    --accent: #1f8a5c;
+    --accent-soft: #dcf0e6;
+    --active: #2f6fb0;
+    --active-soft: #dde9f6;
     --warn: #b3541e;
     --warn-soft: #fbe9dc;
     --danger: #a3352e;
@@ -28,6 +30,16 @@
   }
 
   * { box-sizing: border-box; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .fade-in { animation: fadeIn 0.4s ease-out both; }
+    .fade-in.d1 { animation-delay: 0.05s; }
+    .fade-in.d2 { animation-delay: 0.1s; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: none; }
+    }
+  }
 
   body {
     margin: 0;
@@ -54,11 +66,20 @@
     z-index: 10;
   }
 
-  .brand { display: flex; align-items: baseline; gap: 10px; }
-  .brand h1 { font-size: 19px; font-weight: 800; margin: 0; letter-spacing: -0.01em; }
-  .brand .tag {
-    font-size: 12px; font-weight: 600; color: var(--accent);
-    background: var(--accent-soft); padding: 3px 9px; border-radius: 999px;
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand .mark {
+    display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 9px; flex: none;
+    background: linear-gradient(135deg, var(--accent), var(--active));
+    color: #fff;
+  }
+  .brand .mark svg { width: 18px; height: 18px; }
+  .brand .titles { display: flex; flex-direction: column; gap: 1px; }
+  .brand h1 { font-size: 17px; font-weight: 800; margin: 0; letter-spacing: -0.01em; }
+  .brand .sub { font-size: 11.5px; color: var(--ink-dim); display: flex; align-items: center; gap: 5px; }
+  .brand .sub .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
   }
 
   main { max-width: 1240px; margin: 0 auto; padding: 24px 28px 64px; }
@@ -109,11 +130,64 @@
   }
   .stat {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 14px 16px;
+    padding: 14px 16px; display: flex; align-items: center; gap: 12px;
   }
-  .stat .n { font-family: "Manrope", sans-serif; font-size: 24px; font-weight: 800; }
-  .stat .l { font-size: 12px; color: var(--ink-dim); margin-top: 2px; }
-  .stat.warn .n { color: var(--warn); }
+  .stat .icon {
+    width: 34px; height: 34px; border-radius: 8px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .stat .icon svg { width: 17px; height: 17px; }
+  .stat.warn .icon { background: var(--danger-soft); color: var(--danger); }
+  .stat .n { font-family: "Manrope", sans-serif; font-size: 22px; font-weight: 800; line-height: 1; }
+  .stat .l { font-size: 12px; color: var(--ink-dim); margin-top: 3px; }
+  .stat.warn .n { color: var(--danger); }
+
+  /* --- Charts --- */
+  .charts {
+    display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 14px; margin-bottom: 22px;
+  }
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 16px 18px 14px;
+  }
+  .chart-card h3 {
+    font-size: 12.5px; font-weight: 700; margin: 0 0 12px; color: var(--ink);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .chart-card h3 small { font-weight: 500; color: var(--ink-dim); font-size: 11px; }
+  .chart-card .chart-empty { padding: 28px 0; text-align: center; color: var(--ink-dim); font-size: 12.5px; }
+
+  /* status stacked bar */
+  .status-bar { display: flex; height: 22px; border-radius: 6px; overflow: hidden; background: var(--surface-alt); }
+  .status-bar .seg { height: 100%; }
+  .status-bar .seg + .seg { margin-left: 2px; }
+  .status-legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 12px; }
+  .status-legend .item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-dim); }
+  .status-legend .swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+  .status-legend .item b { color: var(--ink); font-weight: 700; }
+
+  /* svg bar/column charts */
+  .chart-card svg { display: block; overflow: visible; }
+  .chart-card .bar-track { fill: var(--surface-alt); }
+  .chart-card .bar-mark { cursor: pointer; }
+  .chart-card .bar-mark:hover, .chart-card .bar-mark.hover { filter: brightness(1.08); }
+  .chart-card .axis-label { font-size: 10.5px; fill: var(--ink-dim); font-family: "Inter", sans-serif; }
+  .chart-card .value-label { font-size: 11px; fill: var(--ink); font-weight: 700; font-family: "Inter", sans-serif; }
+  .chart-card .chart-note { font-size: 11px; color: var(--ink-dim); margin-top: 8px; }
+
+  .viz-tooltip {
+    position: fixed; pointer-events: none; z-index: 50; display: none;
+    background: var(--ink); color: #fff; font-size: 12px; line-height: 1.4;
+    padding: 6px 10px; border-radius: 7px; box-shadow: var(--shadow);
+    transform: translate(-50%, -100%); white-space: nowrap;
+  }
+  .viz-tooltip .v { font-weight: 700; }
+  .viz-tooltip .k { opacity: 0.75; margin-left: 4px; }
+
+  @media (max-width: 980px) {
+    .charts { grid-template-columns: 1fr; }
+  }
 
   .table-wrap {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -140,6 +214,7 @@
     display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600;
   }
   .pill.ok { background: var(--accent-soft); color: var(--accent); }
+  .pill.active { background: var(--active-soft); color: var(--active); }
   .pill.warn { background: var(--warn-soft); color: var(--warn); }
   .pill.danger { background: var(--danger-soft); color: var(--danger); }
   .pill.muted { background: var(--surface-alt); color: var(--ink-dim); }
@@ -162,8 +237,16 @@
 
 <header>
   <div class="brand">
-    <h1>Дашборд адаптации</h1>
-    <span class="tag">Феодальная Сеть Баров</span>
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2.5l1.8 4.6 4.6 1.8-4.6 1.8-1.8 4.6-1.8-4.6-4.6-1.8 4.6-1.8L12 2.5z" fill="currentColor"/>
+        <path d="M19 14l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9L19 14z" fill="currentColor" opacity="0.75"/>
+      </svg>
+    </span>
+    <div class="titles">
+      <h1>Дашборд адаптации</h1>
+      <span class="sub"><span class="dot"></span>Феодальная Сеть Баров · живые данные</span>
+    </div>
   </div>
   <div id="headerRight" class="who"></div>
 </header>
@@ -177,9 +260,9 @@
   </section>
 
   <section id="app">
-    <div class="stats" id="stats"></div>
+    <div class="stats fade-in" id="stats"></div>
 
-    <div class="toolbar">
+    <div class="toolbar fade-in d1">
       <input type="search" id="search" placeholder="Поиск: ФИО, руководитель, регион…">
       <select id="monthFilter"><option value="">Все месяцы</option></select>
       <select id="statusFilter"><option value="">Все статусы</option></select>
@@ -187,7 +270,22 @@
       <button class="logout" id="logoutBtn">Выйти</button>
     </div>
 
-    <div class="table-wrap">
+    <div class="charts fade-in d2" id="charts">
+      <div class="chart-card">
+        <h3>Статус адаптаций <small id="statusChartTotal"></small></h3>
+        <div id="statusChart"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Старты по месяцам <small>кол-во кандидатов</small></h3>
+        <div id="monthChart"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Больше всего просрочки <small>дней</small></h3>
+        <div id="overdueChart"></div>
+      </div>
+    </div>
+
+    <div class="table-wrap fade-in d2">
       <table id="table">
         <thead>
           <tr>
@@ -215,6 +313,8 @@
   </section>
 </main>
 
+<div class="viz-tooltip" id="vizTooltip" role="tooltip"></div>
+
 <script>
 (function () {
   "use strict";
@@ -224,21 +324,30 @@
   var BOT_USERNAME = "adaptation_hr_RV_bot";
 
   var STEP_LABELS = {
-    "is_tasks_created": ["Задачи ИС", "ok"],
+    "is_tasks_created": ["Задачи ИС", "active"],
     "is_completed": ["ИС пройден", "ok"],
-    "is_completion_processing": ["Завершение ИС", "warn"],
+    "is_completion_processing": ["Завершение ИС", "active"],
     "is_completion_blocked": ["Заблокировано", "danger"],
     "is_task_creation_blocked": ["Заблокировано", "danger"],
     "b24_registration_blocked": ["Заблокировано", "danger"],
     "bz_access_blocked": ["Заблокировано", "danger"],
     "offer_scan_missing": ["Нет скана оффера", "warn"],
   };
+  // Тот же статус, свёрнутый в 3 корзины для графиков — «сколько всего
+  // готово / в процессе / заблокировано», без разбивки по конкретному шагу.
+  var CRITICAL_STEPS = ["is_completion_blocked", "is_task_creation_blocked", "b24_registration_blocked", "bz_access_blocked"];
 
   function stepLabel(step) {
     var known = STEP_LABELS[step];
     if (known) return known;
     if (!step) return ["—", "muted"];
     return [step, "muted"];
+  }
+
+  function statusBucket(step) {
+    if (step === "is_completed") return "good";
+    if (CRITICAL_STEPS.indexOf(step) !== -1) return "critical";
+    return "active";
   }
 
   // ---- session -----------------------------------------------------------
@@ -378,21 +487,179 @@
     }).join("");
 
     renderStats(rows);
+    renderCharts(rows);
   }
+
+  var STAT_ICONS = {
+    total: '<path d="M4 19V10M10 19V5M16 19V13M22 19V8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+    overdue: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+    ready: '<path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+    defended: '<path d="M12 2l8 3.5v5.2C20 16.4 16.6 20.6 12 22c-4.6-1.4-8-5.6-8-11.3V5.5L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  };
 
   function renderStats(rows) {
     var overdue = rows.filter(function (r) { return r.overdue_days > 0; }).length;
     var readyToDefend = rows.reduce(function (s, r) { return s + r.admitted_to_defense; }, 0);
     var defended = rows.reduce(function (s, r) { return s + r.defended; }, 0);
     var stats = [
-      [rows.length, "Активных адаптаций", false],
-      [overdue, "С просрочкой", true],
-      [readyToDefend, "Готово к защите", false],
-      [defended, "Всего защищено", false],
+      [rows.length, "Активных адаптаций", "total", false],
+      [overdue, "С просрочкой", "overdue", true],
+      [readyToDefend, "Готово к защите", "ready", false],
+      [defended, "Всего защищено", "defended", false],
     ];
     document.getElementById("stats").innerHTML = stats.map(function (s) {
-      return '<div class="stat' + (s[2] ? " warn" : "") + '"><div class="n">' + s[0] + '</div><div class="l">' + s[1] + "</div></div>";
+      return '<div class="stat' + (s[3] ? " warn" : "") + '">' +
+        '<span class="icon"><svg viewBox="0 0 24 24" fill="none">' + STAT_ICONS[s[2]] + '</svg></span>' +
+        '<span><div class="n">' + s[0] + '</div><div class="l">' + s[1] + '</div></span>' +
+        '</div>';
     }).join("");
+  }
+
+  // ---- charts ------------------------------------------------------------
+  var STATUS_META = {
+    good: { color: "var(--accent)", label: "Готово" },
+    active: { color: "var(--active)", label: "В процессе" },
+    critical: { color: "var(--danger)", label: "Заблокировано" },
+  };
+
+  function renderCharts(rows) {
+    renderStatusChart(rows);
+    renderMonthChart(rows);
+    renderOverdueChart(rows);
+  }
+
+  function chartEmpty(el, text) {
+    el.innerHTML = '<div class="chart-empty">' + esc(text) + "</div>";
+  }
+
+  // Статус — один составной горизонтальный столбец (не пончик: донат плохо
+  // читается при сравнении величин — см. dataviz-скилл), сегменты с 2px
+  // зазором, легенда снизу с числами.
+  function renderStatusChart(rows) {
+    var el = document.getElementById("statusChart");
+    var totalEl = document.getElementById("statusChartTotal");
+    if (!rows.length) { chartEmpty(el, "Нет данных"); totalEl.textContent = ""; return; }
+
+    var counts = { good: 0, active: 0, critical: 0 };
+    rows.forEach(function (r) { counts[statusBucket(r.current_step)]++; });
+    var total = rows.length;
+    totalEl.textContent = total + " всего";
+
+    var order = ["good", "active", "critical"];
+    var segs = order.map(function (key) {
+      var n = counts[key];
+      var pct = total ? (n / total * 100) : 0;
+      return { key: key, n: n, pct: pct };
+    }).filter(function (s) { return s.n > 0; });
+
+    var bar = '<div class="status-bar" role="img" aria-label="Статус адаптаций">' +
+      segs.map(function (s) {
+        return '<div class="seg bar-mark" data-key="' + s.key + '" data-n="' + s.n + '" data-pct="' + s.pct.toFixed(0) +
+          '" style="width:' + s.pct + '%;background:' + STATUS_META[s.key].color + '"></div>';
+      }).join("") + "</div>";
+
+    var legend = '<div class="status-legend">' + order.map(function (key) {
+      return '<div class="item"><span class="swatch" style="background:' + STATUS_META[key].color + '"></span>' +
+        esc(STATUS_META[key].label) + ": <b>" + counts[key] + "</b></div>";
+    }).join("") + "</div>";
+
+    el.innerHTML = bar + legend;
+    wireBarTooltips(el, function (mark) {
+      var key = mark.getAttribute("data-key");
+      return { value: mark.getAttribute("data-n") + " (" + mark.getAttribute("data-pct") + "%)", label: STATUS_META[key].label };
+    });
+  }
+
+  // Старты по месяцам — вертикальные столбцы, один hue (наём — это не
+  // категория, а просто число в каждом месяце), подпись значения на
+  // верхушке, последние 10 месяцев с данными.
+  function renderMonthChart(rows) {
+    var el = document.getElementById("monthChart");
+    var byMonth = {};
+    rows.forEach(function (r) {
+      if (!r.month_year) return;
+      byMonth[r.month_year] = (byMonth[r.month_year] || 0) + 1;
+    });
+    var months = Object.keys(byMonth).sort(function (a, b) {
+      var pa = a.split("."), pb = b.split(".");
+      return (pa[1] + pa[0]).localeCompare(pb[1] + pb[0]);
+    });
+    if (!months.length) { chartEmpty(el, "Нет данных о датах старта"); return; }
+
+    var shown = months.slice(-10);
+    var dropped = months.length - shown.length;
+    var max = Math.max.apply(null, shown.map(function (m) { return byMonth[m]; }));
+
+    var w = 300, h = 130, padBottom = 18, padTop = 16;
+    var bw = Math.min(24, (w / shown.length) - 8);
+    var gap = (w - bw * shown.length) / (shown.length + 1);
+
+    var bars = shown.map(function (m, i) {
+      var n = byMonth[m];
+      var barH = max ? (n / max) * (h - padTop - padBottom) : 0;
+      var x = gap + i * (bw + gap);
+      var y = h - padBottom - barH;
+      return '<rect class="bar-mark" data-label="' + esc(m) + '" data-value="' + n + '" ' +
+        'x="' + x + '" y="' + y + '" width="' + bw + '" height="' + Math.max(barH, 2) + '" rx="4" fill="var(--accent)"></rect>' +
+        '<text class="value-label" x="' + (x + bw / 2) + '" y="' + (y - 5) + '" text-anchor="middle">' + n + '</text>' +
+        '<text class="axis-label" x="' + (x + bw / 2) + '" y="' + (h - 4) + '" text-anchor="middle">' + esc(m.split(".")[0]) + '</text>';
+    }).join("");
+
+    el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '">' + bars + "</svg>" +
+      (dropped > 0 ? '<div class="chart-note">Показаны последние 10 из ' + months.length + ' месяцев</div>' : "");
+    wireBarTooltips(el, function (mark) {
+      return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") };
+    });
+  }
+
+  // Топ просрочки — горизонтальные бары, один hue (danger), только у кого
+  // реально есть просрочка, не более 8 — остальные считаются, не молчим
+  // про них (see dataviz "no silent caps").
+  function renderOverdueChart(rows) {
+    var el = document.getElementById("overdueChart");
+    var overdue = rows.filter(function (r) { return r.overdue_days > 0; })
+      .sort(function (a, b) { return b.overdue_days - a.overdue_days; });
+    if (!overdue.length) { chartEmpty(el, "Просрочек нет 🎉"); return; }
+
+    var shown = overdue.slice(0, 8);
+    var dropped = overdue.length - shown.length;
+    var max = shown[0].overdue_days;
+    var w = 300, rowH = 22, padLeft = 4;
+    var h = shown.length * rowH;
+
+    var bars = shown.map(function (r, i) {
+      var barW = max ? (r.overdue_days / max) * (w - 70) : 0;
+      var y = i * rowH;
+      return '<text class="axis-label" x="0" y="' + (y + rowH / 2 + 3) + '" text-anchor="start">' +
+          esc(r.full_name.length > 16 ? r.full_name.slice(0, 15) + "…" : r.full_name) + "</text>" +
+        '<rect class="bar-mark" data-label="' + esc(r.full_name) + '" data-value="' + r.overdue_days + ' дн." ' +
+          'x="88" y="' + (y + 4) + '" width="' + Math.max(barW, 3) + '" height="' + (rowH - 10) + '" rx="4" fill="var(--danger)"></rect>' +
+        '<text class="value-label" x="' + (88 + barW + 6) + '" y="' + (y + rowH / 2 + 3) + '" text-anchor="start">' + r.overdue_days + "</text>";
+    }).join("");
+
+    el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '">' + bars + "</svg>" +
+      (dropped > 0 ? '<div class="chart-note">+' + dropped + " ещё с просрочкой" + "</div>" : "");
+    wireBarTooltips(el, function (mark) {
+      return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") };
+    });
+  }
+
+  // Один обработчик hover/focus на весь чарт-контейнер — марки описывают
+  // себя через data-*, tooltip.js не должен знать про конкретный чарт.
+  function wireBarTooltips(container, describe) {
+    var tip = document.getElementById("vizTooltip");
+    container.querySelectorAll(".bar-mark").forEach(function (mark) {
+      mark.addEventListener("pointermove", function (e) {
+        var d = describe(mark);
+        tip.innerHTML = '<span class="v"></span><span class="k"></span>';
+        tip.querySelector(".v").textContent = d.value;
+        tip.querySelector(".k").textContent = d.label;
+        tip.style.display = "block";
+        tip.style.left = e.clientX + "px";
+        tip.style.top = (e.clientY - 10) + "px";
+      });
+      mark.addEventListener("pointerleave", function () { tip.style.display = "none"; });
+    });
   }
 
   function esc(s) {
