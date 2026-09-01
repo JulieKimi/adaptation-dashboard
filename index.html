@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Дашборд адаптации</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f5f3;
+    --surface: #ffffff;
+    --surface-alt: #ececea;
+    --ink: #1c2320;
+    --ink-dim: #5c655f;
+    --border: #dcded9;
+    --accent: #2f6f4f;
+    --accent-soft: #e3efe7;
+    --warn: #b3541e;
+    --warn-soft: #fbe9dc;
+    --danger: #a3352e;
+    --danger-soft: #f8e2df;
+    --shadow: 0 1px 2px rgba(28, 35, 32, 0.06), 0 8px 24px rgba(28, 35, 32, 0.05);
+    --radius: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  h1, h2 { font-family: "Manrope", sans-serif; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand h1 { font-size: 19px; font-weight: 800; margin: 0; letter-spacing: -0.01em; }
+  .brand .tag {
+    font-size: 12px; font-weight: 600; color: var(--accent);
+    background: var(--accent-soft); padding: 3px 9px; border-radius: 999px;
+  }
+
+  main { max-width: 1240px; margin: 0 auto; padding: 24px 28px 64px; }
+
+  /* --- Gate (logged-out) --- */
+  #gate {
+    max-width: 420px;
+    margin: 12vh auto 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 36px 32px;
+    text-align: center;
+  }
+  #gate h2 { font-size: 20px; margin: 0 0 8px; }
+  #gate p { color: var(--ink-dim); margin: 0 0 22px; font-size: 14px; }
+  #gate .widget-slot { display: flex; justify-content: center; min-height: 40px; }
+  #gate .error {
+    margin-top: 16px; font-size: 13px; color: var(--danger);
+    background: var(--danger-soft); border-radius: 8px; padding: 10px 12px; display: none;
+  }
+
+  /* --- App (logged-in) --- */
+  #app { display: none; }
+
+  .toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    margin-bottom: 18px;
+  }
+  .toolbar input[type="search"], .toolbar select {
+    font: inherit; padding: 8px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+  }
+  .toolbar input[type="search"] { flex: 1 1 220px; min-width: 180px; }
+  .toolbar .spacer { flex: 1; }
+  .who { font-size: 13px; color: var(--ink-dim); }
+  .logout {
+    font: inherit; font-size: 13px; color: var(--ink-dim);
+    background: none; border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 12px; cursor: pointer;
+  }
+  .logout:hover { background: var(--surface-alt); }
+
+  .stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px; margin-bottom: 20px;
+  }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .stat .n { font-family: "Manrope", sans-serif; font-size: 24px; font-weight: 800; }
+  .stat .l { font-size: 12px; color: var(--ink-dim); margin-top: 2px; }
+  .stat.warn .n { color: var(--warn); }
+
+  .table-wrap {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow-x: auto;
+  }
+  table { border-collapse: collapse; width: 100%; min-width: 1080px; }
+  thead th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-dim); font-weight: 600; padding: 12px 14px;
+    border-bottom: 1px solid var(--border); background: var(--surface-alt);
+    white-space: nowrap; cursor: pointer; user-select: none;
+  }
+  thead th:hover { color: var(--ink); }
+  thead th .arrow { opacity: 0.4; margin-left: 3px; }
+  tbody td {
+    padding: 11px 14px; border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-alt); }
+  td.name { font-weight: 600; }
+  td.num { text-align: right; }
+
+  .pill {
+    display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  }
+  .pill.ok { background: var(--accent-soft); color: var(--accent); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.danger { background: var(--danger-soft); color: var(--danger); }
+  .pill.muted { background: var(--surface-alt); color: var(--ink-dim); }
+
+  .empty, .loading {
+    padding: 64px 24px; text-align: center; color: var(--ink-dim); font-size: 14px;
+  }
+
+  footer.errors {
+    margin-top: 14px; font-size: 12px; color: var(--warn); background: var(--warn-soft);
+    border-radius: 8px; padding: 10px 14px; display: none;
+  }
+
+  @media (max-width: 640px) {
+    header { padding: 16px; } main { padding: 16px 16px 48px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>Дашборд адаптации</h1>
+    <span class="tag">Феодальная Сеть Баров</span>
+  </div>
+  <div id="headerRight" class="who"></div>
+</header>
+
+<main>
+  <section id="gate">
+    <h2>Вход по Telegram</h2>
+    <p>Доступ есть у РАиО, руководителей и HR. Если бот не пускает — обратитесь к администратору адаптация-бота.</p>
+    <div class="widget-slot" id="widgetSlot"></div>
+    <div class="error" id="gateError"></div>
+  </section>
+
+  <section id="app">
+    <div class="stats" id="stats"></div>
+
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="Поиск: ФИО, руководитель, регион…">
+      <select id="monthFilter"><option value="">Все месяцы</option></select>
+      <select id="statusFilter"><option value="">Все статусы</option></select>
+      <div class="spacer"></div>
+      <button class="logout" id="logoutBtn">Выйти</button>
+    </div>
+
+    <div class="table-wrap">
+      <table id="table">
+        <thead>
+          <tr>
+            <th data-key="full_name">ФИО<span class="arrow"></span></th>
+            <th data-key="position">Должность<span class="arrow"></span></th>
+            <th data-key="object_name">Регион / концепция<span class="arrow"></span></th>
+            <th data-key="manager_full_name">Руководитель<span class="arrow"></span></th>
+            <th data-key="current_step">Статус<span class="arrow"></span></th>
+            <th data-key="month_year">Мес/год<span class="arrow"></span></th>
+            <th data-key="overdue_days" class="num">Просрочка<span class="arrow"></span></th>
+            <th data-key="tasks_remaining" class="num">Задач осталось<span class="arrow"></span></th>
+            <th data-key="tasks_total" class="num">Задач всего<span class="arrow"></span></th>
+            <th data-key="admitted_to_defense" class="num">Готов к защите<span class="arrow"></span></th>
+            <th data-key="defended" class="num">Защищено<span class="arrow"></span></th>
+            <th data-key="evaluation_score" class="num">Оценка рук.<span class="arrow"></span></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="loading" id="loading">Загружаю…</div>
+      <div class="empty" id="empty" style="display:none">Ничего не найдено по заданным фильтрам.</div>
+    </div>
+
+    <footer class="errors" id="rowErrors"></footer>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- config ----------------------------------------------------------
+  var API_BASE = "https://89-207-252-54.sslip.io/dashboard";
+  var BOT_USERNAME = "adaptation_hr_RV_bot";
+
+  var STEP_LABELS = {
+    "is_tasks_created": ["Задачи ИС", "ok"],
+    "is_completed": ["ИС пройден", "ok"],
+    "is_completion_processing": ["Завершение ИС", "warn"],
+    "is_completion_blocked": ["Заблокировано", "danger"],
+    "is_task_creation_blocked": ["Заблокировано", "danger"],
+    "b24_registration_blocked": ["Заблокировано", "danger"],
+    "bz_access_blocked": ["Заблокировано", "danger"],
+    "offer_scan_missing": ["Нет скана оффера", "warn"],
+  };
+
+  function stepLabel(step) {
+    var known = STEP_LABELS[step];
+    if (known) return known;
+    if (!step) return ["—", "muted"];
+    return [step, "muted"];
+  }
+
+  // ---- session -----------------------------------------------------------
+  function getToken() { return sessionStorage.getItem("dashboard_token"); }
+  function setToken(t) { sessionStorage.setItem("dashboard_token", t); }
+  function clearToken() { sessionStorage.removeItem("dashboard_token"); }
+
+  function consumeHashToken() {
+    var m = /(?:^|[#&])token=([^&]+)/.exec(location.hash);
+    if (m) {
+      setToken(decodeURIComponent(m[1]));
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+  }
+
+  // ---- widget --------------------------------------------------------
+  function mountWidget() {
+    var s = document.createElement("script");
+    s.async = true;
+    s.src = "https://telegram.org/js/telegram-widget.js?22";
+    s.setAttribute("data-telegram-login", BOT_USERNAME);
+    s.setAttribute("data-size", "large");
+    s.setAttribute("data-radius", "8");
+    s.setAttribute("data-auth-url", API_BASE + "/login");
+    s.setAttribute("data-request-access", "write");
+    document.getElementById("widgetSlot").appendChild(s);
+  }
+
+  function showGate(message) {
+    document.getElementById("app").style.display = "none";
+    document.getElementById("gate").style.display = "block";
+    document.getElementById("headerRight").textContent = "";
+    var err = document.getElementById("gateError");
+    if (message) { err.textContent = message; err.style.display = "block"; }
+    else { err.style.display = "none"; }
+  }
+
+  // ---- data ------------------------------------------------------------
+  var allRows = [];
+  var sortKey = "overdue_days";
+  var sortDir = -1;
+
+  function fetchData() {
+    var token = getToken();
+    fetch(API_BASE + "/api/data?token=" + encodeURIComponent(token))
+      .then(function (r) {
+        if (r.status === 401) { clearToken(); showGate("Сессия истекла — войдите заново."); throw new Error("unauthorized"); }
+        if (!r.ok) throw new Error("http " + r.status);
+        return r.json();
+      })
+      .then(function (payload) {
+        allRows = payload.rows || [];
+        document.getElementById("gate").style.display = "none";
+        document.getElementById("app").style.display = "block";
+        document.getElementById("headerRight").innerHTML =
+          '<span>' + allRows.length + ' активных адаптаций</span>';
+        populateFilters(allRows);
+        renderErrors(payload.errors || []);
+        render();
+      })
+      .catch(function (e) {
+        if (e.message !== "unauthorized") {
+          document.getElementById("loading").textContent = "Не удалось загрузить данные: " + e.message;
+        }
+      });
+  }
+
+  function renderErrors(errors) {
+    var box = document.getElementById("rowErrors");
+    if (!errors.length) { box.style.display = "none"; return; }
+    box.style.display = "block";
+    box.textContent = "Не удалось посчитать: " + errors.join("; ");
+  }
+
+  function populateFilters(rows) {
+    var months = Array.from(new Set(rows.map(function (r) { return r.month_year; }).filter(Boolean)));
+    months.sort(function (a, b) {
+      var pa = a.split("."), pb = b.split(".");
+      return (pb[1] + pb[0]).localeCompare(pa[1] + pa[0]);
+    });
+    var monthSel = document.getElementById("monthFilter");
+    monthSel.innerHTML = '<option value="">Все месяцы</option>' +
+      months.map(function (m) { return '<option value="' + m + '">' + m + '</option>'; }).join("");
+
+    var steps = Array.from(new Set(rows.map(function (r) { return r.current_step; }).filter(Boolean)));
+    var statusSel = document.getElementById("statusFilter");
+    statusSel.innerHTML = '<option value="">Все статусы</option>' +
+      steps.map(function (s) { return '<option value="' + s + '">' + stepLabel(s)[0] + '</option>'; }).join("");
+  }
+
+  function filteredRows() {
+    var q = document.getElementById("search").value.trim().toLowerCase();
+    var month = document.getElementById("monthFilter").value;
+    var status = document.getElementById("statusFilter").value;
+    return allRows.filter(function (r) {
+      if (month && r.month_year !== month) return false;
+      if (status && r.current_step !== status) return false;
+      if (q) {
+        var hay = (r.full_name + " " + r.manager_full_name + " " + r.object_name + " " + r.position).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    }).sort(function (a, b) {
+      var av = a[sortKey], bv = b[sortKey];
+      if (typeof av === "string") { av = av.toLowerCase(); bv = (bv || "").toLowerCase(); }
+      if (av < bv) return -1 * sortDir;
+      if (av > bv) return 1 * sortDir;
+      return 0;
+    });
+  }
+
+  function render() {
+    var rows = filteredRows();
+    var tbody = document.getElementById("tbody");
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("empty").style.display = rows.length ? "none" : "block";
+
+    tbody.innerHTML = rows.map(function (r) {
+      var step = stepLabel(r.current_step);
+      var overduePill = r.overdue_days > 0
+        ? '<span class="pill danger">' + r.overdue_days + ' дн.</span>'
+        : '<span class="pill ok">нет</span>';
+      return "<tr>" +
+        '<td class="name">' + esc(r.full_name) + "</td>" +
+        "<td>" + esc(r.position) + "</td>" +
+        "<td>" + esc(r.object_name || "—") + "</td>" +
+        "<td>" + esc(r.manager_full_name || "—") + "</td>" +
+        '<td><span class="pill ' + step[1] + '">' + esc(step[0]) + "</span></td>" +
+        "<td>" + esc(r.month_year || "—") + "</td>" +
+        "<td class=\"num\">" + overduePill + "</td>" +
+        '<td class="num">' + r.tasks_remaining + "</td>" +
+        '<td class="num">' + r.tasks_total + "</td>" +
+        '<td class="num">' + r.admitted_to_defense + "</td>" +
+        '<td class="num">' + r.defended + "</td>" +
+        '<td class="num">' + esc(r.evaluation_score || "—") + "</td>" +
+        "</tr>";
+    }).join("");
+
+    renderStats(rows);
+  }
+
+  function renderStats(rows) {
+    var overdue = rows.filter(function (r) { return r.overdue_days > 0; }).length;
+    var readyToDefend = rows.reduce(function (s, r) { return s + r.admitted_to_defense; }, 0);
+    var defended = rows.reduce(function (s, r) { return s + r.defended; }, 0);
+    var stats = [
+      [rows.length, "Активных адаптаций", false],
+      [overdue, "С просрочкой", true],
+      [readyToDefend, "Готово к защите", false],
+      [defended, "Всего защищено", false],
+    ];
+    document.getElementById("stats").innerHTML = stats.map(function (s) {
+      return '<div class="stat' + (s[2] ? " warn" : "") + '"><div class="n">' + s[0] + '</div><div class="l">' + s[1] + "</div></div>";
+    }).join("");
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // ---- wiring ------------------------------------------------------------
+  document.addEventListener("click", function (e) {
+    var th = e.target.closest("th[data-key]");
+    if (!th) return;
+    var key = th.getAttribute("data-key");
+    sortDir = (sortKey === key) ? -sortDir : -1;
+    sortKey = key;
+    render();
+  });
+
+  document.getElementById("search").addEventListener("input", render);
+  document.getElementById("monthFilter").addEventListener("change", render);
+  document.getElementById("statusFilter").addEventListener("change", render);
+  document.getElementById("logoutBtn").addEventListener("click", function () {
+    clearToken();
+    showGate();
+    mountWidget();
+  });
+
+  consumeHashToken();
+  if (getToken()) {
+    fetchData();
+  } else {
+    showGate();
+    mountWidget();
+  }
+})();
+</script>
+</body>
+</html>
