@@ -293,6 +293,111 @@
   }
 
   @media (max-width: 640px) { header { padding: 14px 16px; } main { padding: 16px 16px 48px; } }
+
+  /* ---------- signal blocks (half-width pair) ---------- */
+  .signal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; align-items: stretch; }
+  @media (max-width: 860px) { .signal-row { grid-template-columns: 1fr; } }
+  .signal-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    box-shadow: var(--shadow); display: flex; flex-direction: column; height: 100%; overflow: hidden;
+  }
+  .signal-summary { display: flex; align-items: center; gap: 0.7rem; padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); }
+  .signal-summary .big { font-family: var(--font-display); font-weight: 800; font-size: 1.5rem; line-height: 1; }
+  .signal-summary .big small { display: block; font-family: var(--font-body); font-weight: 600; font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; }
+  .signal-summary .split { display: flex; gap: 0.8rem; margin-left: auto; }
+  .signal-summary .split div { text-align: right; }
+  .signal-summary .split .n { font-family: var(--font-display); font-weight: 800; font-size: 0.92rem; }
+  .signal-summary .split .k { font-size: 0.6rem; color: var(--text-faint); }
+  .signal-summary .split.ok .n { color: var(--success); }
+  .signal-summary .split.warn .n { color: var(--danger); }
+  .signal-row-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--border); }
+  .signal-row-item:last-child { border-bottom: none; }
+  .signal-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .signal-dot.ok { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
+  .signal-dot.warn { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+  .signal-who { flex: 1; min-width: 0; }
+  .signal-who .n { font-weight: 600; font-size: 0.82rem; }
+  .signal-who .r { font-size: 0.7rem; color: var(--text-muted); }
+  .signal-note { font-size: 0.68rem; text-align: right; max-width: 13rem; line-height: 1.3; }
+  .signal-row-item.ok .signal-note { color: var(--success); }
+  .signal-row-item.warn .signal-note { color: var(--danger); }
+  .signal-foot { font-size: 0.65rem; color: var(--text-faint); padding: 0.5rem 1rem; background: var(--surface-alt); line-height: 1.5; margin-top: auto; }
+
+  .is-signal-row { display: grid; grid-template-columns: 1fr auto 5rem; align-items: center; gap: 0.6rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--border); }
+  .is-signal-row:last-child { border-bottom: none; }
+  .is-signal-row .signal-who .n { font-size: 0.82rem; }
+  .is-signal-pill {
+    font-family: var(--font-display); font-weight: 700; font-size: 0.58rem; text-transform: uppercase;
+    letter-spacing: 0.02em; border-radius: 999px; padding: 0.18rem 0.5rem; white-space: nowrap; justify-self: end;
+  }
+  .is-signal-pill.risk { background: var(--danger-soft); color: var(--danger); }
+  .is-signal-pill.watch { background: var(--warning-soft); color: var(--warning); }
+  .is-signal-pill.ok { background: var(--success-soft); color: var(--success); }
+  .is-signal-days { text-align: right; font-family: var(--font-display); font-weight: 800; font-size: 0.8rem; white-space: nowrap; }
+  .is-signal-days small { display: block; font-family: var(--font-body); font-weight: 600; font-size: 0.55rem; color: var(--text-faint); text-transform: uppercase; }
+  .is-signal-track { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: var(--surface-alt); overflow: visible; position: relative; margin-top: 1px; }
+  .is-signal-fill { height: 100%; border-radius: 3px; background: var(--accent); }
+  .is-signal-row.risk .is-signal-fill { background: var(--danger); }
+  .is-signal-pace { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text); opacity: 0.3; }
+  .signal-empty { padding: 1.4rem 1rem; text-align: center; color: var(--text-faint); font-size: 0.78rem; }
+
+  /* ---------- candidate detail modal ---------- */
+  .card { cursor: pointer; }
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(20, 18, 12, 0.45); backdrop-filter: blur(2px);
+    display: none; align-items: flex-start; justify-content: center; padding: 5vh 16px; z-index: 100; overflow-y: auto;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow-lg);
+    max-width: 720px; width: 100%; overflow: hidden; margin-bottom: 5vh;
+  }
+  .modal-head { padding: 1.1rem 1.4rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 0.8rem; }
+  .modal-head .n { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; margin: 0; }
+  .modal-head .r { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.15rem; }
+  .modal-close {
+    font: inherit; font-size: 0.75rem; color: var(--text-faint); background: var(--surface-alt); border: none;
+    border-radius: 999px; width: 1.8rem; height: 1.8rem; cursor: pointer; flex: none;
+  }
+  .modal-close:hover { background: var(--border); }
+  .modal-body { display: grid; grid-template-columns: 1fr 1.4fr; }
+  @media (max-width: 640px) { .modal-body { grid-template-columns: 1fr; } }
+  .modal-steps { padding: 1.1rem 1.4rem; border-right: 1px solid var(--border); }
+  @media (max-width: 640px) { .modal-steps { border-right: none; border-bottom: 1px solid var(--border); } }
+  .modal-tasks { padding: 1.1rem 1.4rem; max-height: 60vh; overflow-y: auto; }
+  .modal-steps h4, .modal-tasks h4 {
+    font-family: var(--font-display); font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text-faint); margin: 0 0 0.7rem;
+  }
+  .step-timeline { display: flex; flex-direction: column; }
+  .step-node { display: flex; align-items: flex-start; gap: 0.6rem; padding-bottom: 0.85rem; position: relative; }
+  .step-node:last-child { padding-bottom: 0; }
+  .step-node::before { content: ""; position: absolute; left: 8px; top: 20px; bottom: -2px; width: 1.5px; background: var(--border); }
+  .step-node:last-child::before { display: none; }
+  .step-node-dot { width: 17px; height: 17px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; z-index: 1; }
+  .step-node-dot.done { background: var(--success); }
+  .step-node-dot.done svg { width: 10px; height: 10px; stroke: #fff; }
+  .step-node-dot.current { background: var(--surface); border: 2.5px solid var(--accent); }
+  .step-node-dot.blocked { background: var(--danger); }
+  .step-node-dot.blocked svg { width: 9px; height: 9px; stroke: #fff; }
+  .step-node-dot.upcoming { background: var(--surface); border: 1.5px solid var(--border); }
+  .step-node-text { font-size: 0.8rem; padding-top: 0.05rem; }
+  .step-node.done .step-node-text { color: var(--text-muted); }
+  .step-node.current .step-node-text { color: var(--text); font-weight: 700; }
+  .step-node.blocked .step-node-text { color: var(--danger); font-weight: 700; }
+  .step-node.upcoming .step-node-text { color: var(--text-faint); }
+  .modal-task-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 0.6rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+  .modal-task-row:last-child { border-bottom: none; }
+  .modal-task-row .t { font-size: 0.8rem; line-height: 1.35; }
+  .modal-task-row .d { font-size: 0.68rem; color: var(--text-faint); white-space: nowrap; }
+  .modal-task-status {
+    font-family: var(--font-display); font-weight: 700; font-size: 0.56rem; text-transform: uppercase;
+    letter-spacing: 0.02em; border-radius: 999px; padding: 0.18rem 0.5rem; white-space: nowrap;
+  }
+  .modal-task-status.done { background: var(--success-soft); color: var(--success); }
+  .modal-task-status.pending { background: var(--neutral-pill-bg); color: var(--neutral-pill-fg); }
+  .modal-task-status.overdue { background: var(--danger-soft); color: var(--danger); }
+  .modal-tasks-empty { font-size: 0.8rem; color: var(--text-faint); }
 </style>
 </head>
 <body>
@@ -320,6 +425,11 @@
 
   <section id="app">
     <div class="stats fade-in" id="stats"></div>
+
+    <div class="signal-row fade-in d1">
+      <section class="signal-panel" id="tomorrowPanel"></section>
+      <section class="signal-panel" id="isRiskPanel"></section>
+    </div>
 
     <div class="toolbar fade-in d1">
       <input type="search" id="search" placeholder="Поиск: ФИО, руководитель, регион…">
@@ -371,6 +481,10 @@
 
 <div class="viz-tooltip" id="vizTooltip" role="tooltip"></div>
 
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-card" id="modalCard"></div>
+</div>
+
 <script>
 (function () {
   "use strict";
@@ -379,23 +493,95 @@
   var API_BASE = "https://adaptation-dash.89-207-252-54.sslip.io";
   var BOT_USERNAME = "adaptation_hr_RV_bot";
 
-  var STEP_LABELS = {
-    "is_tasks_created": ["Задачи ИС", "active"],
-    "is_completed": ["ИС пройден", "done"],
-    "is_completion_processing": ["Завершение ИС", "active"],
-    "is_completion_blocked": ["Заблокировано", "blocked"],
-    "is_task_creation_blocked": ["Заблокировано", "blocked"],
-    "b24_registration_blocked": ["Заблокировано", "blocked"],
-    "bz_access_blocked": ["Заблокировано", "blocked"],
-    "offer_scan_missing": ["Нет скана оффера", "blocked"],
+  // Шесть реальных шагов пребординга до старта ИС (created -> подтверждён
+  // доступ к БЗ) — их конкретный порядок в коде бота, см.
+  // preboarding_flow.py. Дальше идёт трек ИС (отдельно не нумеруем, там
+  // уже есть счётчик задач).
+  var PREBOARDING_ORDER = [
+    "created",
+    "awaiting_poehali",
+    "awaiting_ponyatno",
+    "awaiting_nachinayu",
+    "awaiting_b24_confirmation",
+    "awaiting_bz_confirmation",
+  ];
+  // Промежуточные "processing"-шаги (атомарный захват в БД, обычно доли
+  // секунды) и заблокированные варианты каждого — показываем как ту же
+  // позицию в пребординге, что и шаг, которого они ждут/из которого
+  // выросли.
+  var STEP_POSITION = {
+    "created": 0,
+    "awaiting_poehali": 1,
+    "awaiting_ponyatno": 2,
+    "awaiting_nachinayu": 3,
+    "b24_account_creation_processing": 3,
+    "b24_registration_blocked": 3,
+    "awaiting_b24_confirmation": 4,
+    "kb_access_grant_processing": 4,
+    "bz_access_blocked": 4,
+    "awaiting_bz_confirmation": 5,
+    "step6_acknowledged": 6,
+    "awaiting_is_deadline": 6,
+    "awaiting_auditor_search_claim": 6,
+    "awaiting_auditor_search": 6,
+    "is_task_creation_processing": 6,
+    "is_task_creation_blocked": 6,
+    "is_tasks_created": 7,
+    "is_completion_processing": 7,
+    "is_completion_blocked": 7,
+    "is_completed": 8,
   };
-  var IS_REACHED_STEPS = ["is_tasks_created", "is_completion_processing", "is_completion_blocked", "is_completed"];
+  var PREBOARDING_TOTAL = PREBOARDING_ORDER.length; // 6
+
+  var STEP_LABELS = {
+    "created": "Ждёт /start",
+    "awaiting_poehali": "Написал(а) /start",
+    "awaiting_ponyatno": "Нажал(а) «Погнали»",
+    "awaiting_nachinayu": "Нажал(а) «Понятно»",
+    "b24_account_creation_processing": "Создаём учётку Б24…",
+    "b24_registration_blocked": "Не создалась учётка Б24",
+    "awaiting_b24_confirmation": "Учётка Б24 создана",
+    "kb_access_grant_processing": "Выдаём доступ к БЗ…",
+    "bz_access_blocked": "Не выдался доступ к БЗ",
+    "awaiting_bz_confirmation": "Доступ к БЗ выдан",
+    "step6_acknowledged": "Пребординг пройден",
+    "awaiting_is_deadline": "Пребординг пройден",
+    "awaiting_auditor_search_claim": "Ищем наблюдателя ИС",
+    "awaiting_auditor_search": "Ищем наблюдателя ИС",
+    "is_task_creation_processing": "Создаём задачи ИС…",
+    "is_task_creation_blocked": "Не создались задачи ИС",
+    "is_tasks_created": "Задачи ИС",
+    "is_completion_processing": "Завершение ИС…",
+    "is_completion_blocked": "Проблема при завершении ИС",
+    "is_completed": "ИС пройден",
+    "offer_scan_missing": "Нет скана оффера",
+  };
+  var BLOCKED_STEPS = {
+    "b24_registration_blocked": 1, "bz_access_blocked": 1, "is_task_creation_blocked": 1,
+    "is_completion_blocked": 1, "offer_scan_missing": 1,
+  };
+  var IS_REACHED_STEPS = [
+    "awaiting_is_deadline", "awaiting_auditor_search_claim", "awaiting_auditor_search",
+    "is_task_creation_processing", "is_task_creation_blocked",
+    "is_tasks_created", "is_completion_processing", "is_completion_blocked", "is_completed",
+  ];
+  // Пребординг пройден = дошёл до трека ИС (шаг 6 включён в пребординг,
+  // всё, что дальше — уже ИС).
+  var PREBOARDING_DONE_STEPS = IS_REACHED_STEPS;
 
   function stepLabel(step) {
-    var known = STEP_LABELS[step];
-    if (known) return known;
+    var text = STEP_LABELS[step] || step || "—";
     if (!step) return ["—", "neutral"];
+    if (BLOCKED_STEPS[step]) return [text, "blocked"];
+    if (step === "is_completed") return [text, "done"];
+    var pos = PREBOARDING_ORDER.indexOf(step);
+    if (pos !== -1) return [(pos + 1) + "/" + PREBOARDING_TOTAL + " · " + text, "active"];
+    if (STEP_LABELS[step]) return [text, "active"];
     return [step, "neutral"];
+  }
+
+  function isPreboardingDone(step) {
+    return PREBOARDING_DONE_STEPS.indexOf(step) !== -1;
   }
 
   var MONTH_NAMES = { "01": "янв", "02": "фев", "03": "мар", "04": "апр", "05": "май", "06": "июн", "07": "июл", "08": "авг", "09": "сен", "10": "окт", "11": "ноя", "12": "дек" };
@@ -529,6 +715,11 @@
     var rows = filteredRows();
     renderPeriodChip();
     renderStats(rows);
+    // Сигнальные блоки — всегда по полному списку, не режем поиском/
+    // фильтрами тулбара: это про "кто требует внимания сейчас", а не про
+    // текущий срез карточек ниже.
+    renderTomorrowPanel(allRows);
+    renderIsRiskPanel(allRows);
     renderFunnel(rows);
     renderMonthChart(rows);
     renderOverdueChart(rows);
@@ -704,9 +895,209 @@
 
       var foot = '<div class="card-foot">' + esc(r.manager_full_name ? "рук. " + r.manager_full_name : "руководитель не указан") + evalLine + '</div>';
 
-      return '<article class="card' + (isBlocked ? ' is-blocked' : '') + '">' + head + body + dates + foot + '</article>';
+      return '<article class="card' + (isBlocked ? ' is-blocked' : '') + '" data-idx="' + rows.indexOf(r) + '">' + head + body + dates + foot + '</article>';
+    }).join("");
+
+    wrap.querySelectorAll(".card").forEach(function (cardEl) {
+      cardEl.addEventListener("click", function () {
+        openCandidateModal(rows[Number(cardEl.getAttribute("data-idx"))]);
+      });
+    });
+  }
+
+  // ---- signal blocks -----------------------------------------------------
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function addDaysISO(iso, n) {
+    var d = new Date(iso + "T00:00:00");
+    d.setDate(d.getDate() + n);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function daysBetweenISO(fromIso, toIso) {
+    return Math.round((new Date(toIso + "T00:00:00") - new Date(fromIso + "T00:00:00")) / 86400000);
+  }
+
+  function renderTomorrowPanel(rows) {
+    var el = document.getElementById("tomorrowPanel");
+    var today = todayISO();
+    var tomorrow = addDaysISO(today, 1);
+    // "Завтра" при отсутствии кандидатов на реальное завтра падаем на
+    // "сегодня" — иначе блок почти всегда пустой без всякой пользы для
+    // ревью. В проде и то, и другое — просто start_date === нужная дата.
+    var targetDate = tomorrow, targetLabel = "завтра " + formatDate(tomorrow);
+    var starters = rows.filter(function (r) { return r.start_date === targetDate; });
+    if (!starters.length) {
+      targetDate = today; targetLabel = "сегодня " + formatDate(today);
+      starters = rows.filter(function (r) { return r.start_date === targetDate; });
+    }
+    var title = (targetDate === tomorrow ? "Завтра выходят на работу" : "Сегодня выходят на работу");
+
+    if (!starters.length) {
+      el.innerHTML =
+        '<div class="signal-summary"><div class="big">0<small>' + esc(targetLabel) + '</small></div></div>' +
+        '<div class="signal-empty">Никто не выходит ' + esc(targetLabel) + '.</div>';
+      return;
+    }
+    var ready = starters.filter(function (r) { return isPreboardingDone(r.current_step); });
+    var notReady = starters.filter(function (r) { return !isPreboardingDone(r.current_step); });
+    var ordered = ready.concat(notReady);
+    var rowsHtml = ordered.map(function (r) {
+      var isReady = isPreboardingDone(r.current_step);
+      var note = isReady ? "Пребординг пройден" : (STEP_LABELS[r.current_step] || r.current_step);
+      return '<div class="signal-row-item ' + (isReady ? "ok" : "warn") + '" data-name="' + esc(r.full_name) + '">' +
+        '<span class="signal-dot ' + (isReady ? "ok" : "warn") + '"></span>' +
+        '<div class="signal-who"><div class="n">' + esc(r.full_name) + '</div><div class="r">' + esc(r.position) + '</div></div>' +
+        '<div class="signal-note">' + esc(note) + '</div>' +
+        '</div>';
+    }).join("");
+    el.innerHTML =
+      '<div class="signal-summary"><div class="big">' + starters.length + '<small>' + esc(targetLabel) + '</small></div>' +
+      '<div class="split ok"><div class="n">' + ready.length + '</div><div class="k">готовы</div></div>' +
+      '<div class="split warn"><div class="n">' + notReady.length + '</div><div class="k">не готовы</div></div></div>' +
+      rowsHtml;
+    wireSignalRowClicks(el, ordered);
+  }
+
+  // Первый дедлайн задачи ИС ~= конец 1-й недели — берём его минус 7 дней
+  // как точку отсчёта старта ИС (для сравнения темпа). Без этого
+  // «прошло % срока» посчитать не из чего — is_end_date у нас только
+  // конечная дата.
+  function isPaceInfo(row) {
+    if (!row.is_end_date || !row.tasks || !row.tasks.length) return null;
+    var deadlines = row.tasks.map(function (t) { return t.deadline; }).filter(Boolean).sort();
+    if (!deadlines.length) return null;
+    var firstDeadlineIso = deadlines[0].slice(0, 10);
+    var startIso = addDaysISO(firstDeadlineIso, -7);
+    var today = todayISO();
+    var totalSpan = daysBetweenISO(startIso, row.is_end_date);
+    if (totalSpan <= 0) return null;
+    var elapsed = Math.max(0, Math.min(totalSpan, daysBetweenISO(startIso, today)));
+    var elapsedFraction = elapsed / totalSpan;
+    var doneCount = row.tasks.filter(function (t) { return t.is_done; }).length;
+    var doneFraction = row.tasks.length ? doneCount / row.tasks.length : 0;
+    var status = "ok";
+    if (elapsedFraction < 0.15) status = "watch";
+    else if (doneFraction + 0.15 < elapsedFraction) status = "risk";
+    var daysLeft = daysBetweenISO(today, row.is_end_date);
+    return {
+      elapsedFraction: elapsedFraction, doneFraction: doneFraction, status: status,
+      daysLeft: daysLeft, doneCount: doneCount, totalCount: row.tasks.length,
+    };
+  }
+
+  function renderIsRiskPanel(rows) {
+    var el = document.getElementById("isRiskPanel");
+    var withPace = rows.map(function (r) { return { row: r, pace: isPaceInfo(r) }; })
+      .filter(function (x) { return x.pace !== null; })
+      .sort(function (a, b) { return a.pace.daysLeft - b.pace.daysLeft; });
+
+    var head = '<div class="block-head-inline" style="display:flex;align-items:center;padding:0.85rem 1rem;border-bottom:1px solid var(--border)">' +
+      '<span style="font-family:var(--font-display);font-weight:700;font-size:0.82rem">Статус ИС — сроки и риск</span></div>';
+
+    if (!withPace.length) {
+      el.innerHTML = head + '<div class="signal-empty">Пока никто не на ИС с известной датой окончания.</div>';
+      return;
+    }
+    var STATUS_LABEL = { ok: "в темпе", watch: "рано судить", risk: "риск" };
+    var rowsHtml = withPace.map(function (x) {
+      var r = x.row, p = x.pace;
+      return '<div class="is-signal-row ' + (p.status === "risk" ? "risk" : "") + '" data-name="' + esc(r.full_name) + '">' +
+        '<div class="signal-who"><div class="n">' + esc(r.full_name) + '</div>' +
+        '<div class="r">' + p.daysLeft + ' дн. · до ' + formatDate(r.is_end_date) + '</div></div>' +
+        '<span class="is-signal-pill ' + p.status + '">' + STATUS_LABEL[p.status] + '</span>' +
+        '<div class="is-signal-days">' + p.doneCount + '/' + p.totalCount + '<small>задач</small></div>' +
+        '<div class="is-signal-track"><div class="is-signal-fill" style="width:' + Math.round(p.doneFraction * 100) + '%"></div>' +
+        '<div class="is-signal-pace" style="left:' + Math.round(p.elapsedFraction * 100) + '%"></div></div>' +
+        '</div>';
+    }).join("");
+    el.innerHTML = head + rowsHtml;
+    wireSignalRowClicks(el, withPace.map(function (x) { return x.row; }));
+  }
+
+  function wireSignalRowClicks(container, rowsInOrder) {
+    var items = container.querySelectorAll("[data-name]");
+    items.forEach(function (item, i) {
+      item.style.cursor = "pointer";
+      item.addEventListener("click", function () { openCandidateModal(rowsInOrder[i]); });
+    });
+  }
+
+  // ---- candidate detail modal ---------------------------------------------
+  var MODAL_TIMELINE = [
+    { pos: 1, text: "Написал(а) /start" },
+    { pos: 4, text: "Учётка Б24 создана и подтверждена" },
+    { pos: 6, text: "Доступ к БЗ выдан и подтверждён — пребординг пройден" },
+    { pos: 7, text: "Задачи ИС созданы" },
+    { pos: 8, text: "Испытательный срок пройден" },
+  ];
+
+  function renderStepTimeline(row) {
+    // Каждый узел — это уже СОБЫТИЕ (контрольная точка), не фаза. Если
+    // currentPos >= node.pos, точка уже пройдена — даже если человек
+    // сидит в этом шаге неделями (например is_tasks_created), это давно
+    // done, а не "текущее". "Текущий" — первая ещё не пройденная точка;
+    // если человек застрял (blocked) — именно она подсвечивается красным.
+    var currentPos = STEP_POSITION.hasOwnProperty(row.current_step) ? STEP_POSITION[row.current_step] : -1;
+    var isBlocked = !!BLOCKED_STEPS[row.current_step];
+    var nextIdx = -1;
+    for (var i = 0; i < MODAL_TIMELINE.length; i++) {
+      if (MODAL_TIMELINE[i].pos > currentPos) { nextIdx = i; break; }
+    }
+    return MODAL_TIMELINE.map(function (node, i) {
+      var cls;
+      if (currentPos >= node.pos) cls = "done";
+      else if (i === nextIdx) cls = isBlocked ? "blocked" : "current";
+      else cls = "upcoming";
+      var icon = cls === "done"
+        ? '<svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        : (cls === "blocked" ? '<svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke-width="3" stroke-linecap="round"/></svg>' : "");
+      var text = (cls === "blocked") ? (STEP_LABELS[row.current_step] || node.text) : node.text;
+      return '<div class="step-node ' + cls + '"><span class="step-node-dot ' + cls + '">' + icon + '</span>' +
+        '<span class="step-node-text">' + esc(text) + '</span></div>';
     }).join("");
   }
+
+  function renderModalTasks(row) {
+    if (!row.tasks || !row.tasks.length) {
+      return '<div class="modal-tasks-empty">Задач ИС пока нет.</div>';
+    }
+    var sorted = row.tasks.slice().sort(function (a, b) { return (a.deadline || "").localeCompare(b.deadline || ""); });
+    return sorted.map(function (t) {
+      var status = t.is_done ? "done" : (t.is_overdue ? "overdue" : "pending");
+      var statusText = t.is_done ? "Готово" : (t.is_overdue ? "Просрочена" : "В процессе");
+      return '<div class="modal-task-row"><span class="t">' + esc(t.title) + '</span>' +
+        '<span class="d">' + formatDate(t.deadline) + '</span>' +
+        '<span class="modal-task-status ' + status + '">' + statusText + '</span></div>';
+    }).join("");
+  }
+
+  function openCandidateModal(row) {
+    var done = row.tasks ? row.tasks.filter(function (t) { return t.is_done; }).length : 0;
+    var total = row.tasks ? row.tasks.length : 0;
+    document.getElementById("modalCard").innerHTML =
+      '<div class="modal-head"><div><p class="n">' + esc(row.full_name) + '</p>' +
+      '<div class="r">' + esc(row.position) + (row.object_name ? " · " + esc(row.object_name) : "") + '</div></div>' +
+      '<button class="modal-close" id="modalCloseBtn">✕</button></div>' +
+      '<div class="modal-body">' +
+      '<div class="modal-steps"><h4>Этапы</h4><div class="step-timeline">' + renderStepTimeline(row) + '</div></div>' +
+      '<div class="modal-tasks"><h4>Задачи ИС' + (total ? " (" + total + ") — " + done + " выполнено" : "") + '</h4>' + renderModalTasks(row) + '</div>' +
+      '</div>';
+    document.getElementById("modalOverlay").classList.add("open");
+    document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
+  }
+
+  function closeModal() {
+    document.getElementById("modalOverlay").classList.remove("open");
+  }
+
+  document.getElementById("modalOverlay").addEventListener("click", function (e) {
+    if (e.target === document.getElementById("modalOverlay")) closeModal();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeModal();
+  });
 
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
