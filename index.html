@@ -919,6 +919,24 @@
     return Math.round((new Date(toIso + "T00:00:00") - new Date(fromIso + "T00:00:00")) / 86400000);
   }
 
+  // Пользователь, 2026-09-16: пребординг пройден (шаги бота) — это ещё
+  // не "готов". Реальные задачи АДАПТАЦИЯ (отдельный Bitrix-чеклист,
+  // ad_tasks_total/ad_tasks_done) могут быть ещё не закрыты — Коростелева
+  // (11/13) и Хробостова (10/13) реально на этом попались, карточка
+  // показывала "готов" зелёным, хотя торопить их как раз и надо было.
+  function fullReadiness(row) {
+    if (!isPreboardingDone(row.current_step)) {
+      return { ready: false, note: STEP_LABELS[row.current_step] || row.current_step };
+    }
+    if (!row.ad_tasks_total) {
+      return { ready: false, note: "Нет задач АДАПТАЦИЯ в Битриксе — проверить" };
+    }
+    if (row.ad_tasks_done < row.ad_tasks_total) {
+      return { ready: false, note: "АДАПТАЦИЯ: " + row.ad_tasks_done + "/" + row.ad_tasks_total + " задач" };
+    }
+    return { ready: true, note: "Пребординг и АДАПТАЦИЯ пройдены" };
+  }
+
   function renderTomorrowPanel(rows) {
     var el = document.getElementById("tomorrowPanel");
     var today = todayISO();
@@ -932,7 +950,6 @@
       targetDate = today; targetLabel = "сегодня " + formatDate(today);
       starters = rows.filter(function (r) { return r.start_date === targetDate; });
     }
-    var title = (targetDate === tomorrow ? "Завтра выходят на работу" : "Сегодня выходят на работу");
 
     if (!starters.length) {
       el.innerHTML =
@@ -940,16 +957,16 @@
         '<div class="signal-empty">Никто не выходит ' + esc(targetLabel) + '.</div>';
       return;
     }
-    var ready = starters.filter(function (r) { return isPreboardingDone(r.current_step); });
-    var notReady = starters.filter(function (r) { return !isPreboardingDone(r.current_step); });
+    var withReadiness = starters.map(function (r) { return { row: r, info: fullReadiness(r) }; });
+    var ready = withReadiness.filter(function (x) { return x.info.ready; });
+    var notReady = withReadiness.filter(function (x) { return !x.info.ready; });
     var ordered = ready.concat(notReady);
-    var rowsHtml = ordered.map(function (r) {
-      var isReady = isPreboardingDone(r.current_step);
-      var note = isReady ? "Пребординг пройден" : (STEP_LABELS[r.current_step] || r.current_step);
+    var rowsHtml = ordered.map(function (x) {
+      var r = x.row, isReady = x.info.ready;
       return '<div class="signal-row-item ' + (isReady ? "ok" : "warn") + '" data-name="' + esc(r.full_name) + '">' +
         '<span class="signal-dot ' + (isReady ? "ok" : "warn") + '"></span>' +
         '<div class="signal-who"><div class="n">' + esc(r.full_name) + '</div><div class="r">' + esc(r.position) + '</div></div>' +
-        '<div class="signal-note">' + esc(note) + '</div>' +
+        '<div class="signal-note">' + esc(x.info.note) + '</div>' +
         '</div>';
     }).join("");
     el.innerHTML =
@@ -957,7 +974,7 @@
       '<div class="split ok"><div class="n">' + ready.length + '</div><div class="k">готовы</div></div>' +
       '<div class="split warn"><div class="n">' + notReady.length + '</div><div class="k">не готовы</div></div></div>' +
       rowsHtml;
-    wireSignalRowClicks(el, ordered);
+    wireSignalRowClicks(el, ordered.map(function (x) { return x.row; }));
   }
 
   // Первый дедлайн задачи ИС ~= конец 1-й недели — берём его минус 7 дней
@@ -1076,9 +1093,15 @@
   function openCandidateModal(row) {
     var done = row.tasks ? row.tasks.filter(function (t) { return t.is_done; }).length : 0;
     var total = row.tasks ? row.tasks.length : 0;
+    var adLine = "";
+    if (row.ad_tasks_total) {
+      var adDone = row.ad_tasks_done === row.ad_tasks_total;
+      adLine = '<div class="r" style="margin-top:0.25rem;color:' + (adDone ? "var(--success)" : "var(--warning)") + '">' +
+        'АДАПТАЦИЯ: ' + row.ad_tasks_done + '/' + row.ad_tasks_total + ' задач' + (adDone ? " — всё готово" : "") + '</div>';
+    }
     document.getElementById("modalCard").innerHTML =
       '<div class="modal-head"><div><p class="n">' + esc(row.full_name) + '</p>' +
-      '<div class="r">' + esc(row.position) + (row.object_name ? " · " + esc(row.object_name) : "") + '</div></div>' +
+      '<div class="r">' + esc(row.position) + (row.object_name ? " · " + esc(row.object_name) : "") + '</div>' + adLine + '</div>' +
       '<button class="modal-close" id="modalCloseBtn">✕</button></div>' +
       '<div class="modal-body">' +
       '<div class="modal-steps"><h4>Этапы</h4><div class="step-timeline">' + renderStepTimeline(row) + '</div></div>' +
