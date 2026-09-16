@@ -354,18 +354,23 @@
   .signal-summary .split .k { font-size: 0.6rem; color: var(--text-faint); }
   .signal-summary .split.ok .n { color: var(--success); }
   .signal-summary .split.warn .n { color: var(--danger); }
+  .signal-summary .split.soon .n { color: var(--warning); }
   .signal-row-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--border); }
   .signal-row-item:last-child { border-bottom: none; }
   .signal-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
   .signal-dot.ok { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
   .signal-dot.warn { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+  .signal-dot.soon { background: var(--warning); box-shadow: 0 0 0 3px var(--warning-soft); }
+  .signal-dot.neutral { background: var(--text-faint); }
   .signal-who { flex: 1; min-width: 0; }
   .signal-who .n { font-weight: 600; font-size: 0.82rem; }
   .signal-who .r { font-size: 0.7rem; color: var(--text-muted); }
   .signal-note { font-size: 0.68rem; text-align: right; max-width: 13rem; line-height: 1.3; }
   .signal-row-item.ok .signal-note { color: var(--success); }
   .signal-row-item.warn .signal-note { color: var(--danger); }
+  .signal-row-item.soon .signal-note { color: var(--warning); }
   .signal-foot { font-size: 0.65rem; color: var(--text-faint); padding: 0.5rem 1rem; background: var(--surface-alt); line-height: 1.5; margin-top: auto; }
+  .signal-scroll { overflow-y: auto; max-height: 380px; }
 
   .is-signal-row { display: grid; grid-template-columns: 1fr auto 5rem; align-items: center; gap: 0.6rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--border); }
   .is-signal-row:last-child { border-bottom: none; }
@@ -1048,6 +1053,19 @@
   function daysBetweenISO(fromIso, toIso) {
     return Math.round((new Date(toIso + "T00:00:00") - new Date(fromIso + "T00:00:00")) / 86400000);
   }
+  function ruDays(n) {
+    var n100 = Math.abs(n) % 100, n10 = n100 % 10;
+    if (n100 > 10 && n100 < 20) return "дней";
+    if (n10 === 1) return "день";
+    if (n10 > 1 && n10 < 5) return "дня";
+    return "дней";
+  }
+  function daysPhrase(days) {
+    if (days === null) return "дата старта неизвестна";
+    if (days === 0) return "старт сегодня";
+    if (days > 0) return "через " + days + " " + ruDays(days);
+    return "старт был " + Math.abs(days) + " " + ruDays(days) + " назад";
+  }
 
   // Пользователь, 2026-09-16: пребординг пройден (шаги бота) — это ещё
   // не "готов". Реальные задачи АДАПТАЦИЯ (отдельный Bitrix-чеклист,
@@ -1067,44 +1085,52 @@
     return { ready: true, note: "Пребординг и АДАПТАЦИЯ пройдены" };
   }
 
-  // Пользователь, 2026-09-16: «не кто выходит сегодня - а те у кого
-  // оффер (дата старта за 3 дня до)» — это заблаговременное окно на
-  // подготовку, не отчёт по факту дня старта. Специально без фолбэка на
-  // "сегодня": если панель пуста, это и есть ответ — через 3 дня никто
-  // не стартует, готовить пока некого.
+  // Пользователь, 2026-09-17: «сделай чтобы отображались все кто подписал
+  // оффер и находится на пребординге. И статусы по ним. с датами старта.
+  // Сортировка по дате старта — чем ближе дата 0 тем выше он в списке».
+  // Раньше панель показывала только тех, кто стартует ровно через 3 дня
+  // (почти всегда пусто) — теперь весь пребординг целиком, отсортирован
+  // по |дней до старта|: и «стартует через 2 дня» (скоро, но ещё не
+  // готов), и «должен был стартовать 5 дней назад, а всё ещё на
+  // пребординге» (просрочка, красный) поднимаются к началу списка
+  // одинаково — оба одинаково требуют внимания прямо сейчас.
   function renderTomorrowPanel(rows) {
     var el = document.getElementById("tomorrowPanel");
     var today = todayISO();
-    var targetDate = addDaysISO(today, 3);
-    var targetLabel = "через 3 дня — " + formatDate(targetDate);
-    var starters = rows.filter(function (r) { return r.start_date === targetDate; });
+    var candidates = rows.filter(function (r) { return !isPreboardingDone(r.current_step); });
 
-    if (!starters.length) {
+    if (!candidates.length) {
       el.innerHTML =
-        '<div class="signal-summary"><div class="big">0<small>' + esc(targetLabel) + '</small></div></div>' +
+        '<div class="signal-summary"><div class="big">0<small>на пребординге</small></div></div>' +
         '<div class="signal-empty"><svg class="signal-empty-icon" viewBox="0 0 24 24" fill="none">' +
         '<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
-        'Никто не стартует ' + esc(targetLabel) + '.</div>';
+        'Все, кто подписал оффер, уже прошли пребординг.</div>';
       return;
     }
-    var withReadiness = starters.map(function (r) { return { row: r, info: fullReadiness(r) }; });
-    var ready = withReadiness.filter(function (x) { return x.info.ready; });
-    var notReady = withReadiness.filter(function (x) { return !x.info.ready; });
-    var ordered = ready.concat(notReady);
-    var rowsHtml = ordered.map(function (x) {
-      var r = x.row, isReady = x.info.ready;
-      return '<div class="signal-row-item ' + (isReady ? "ok" : "warn") + '" data-name="' + esc(r.full_name) + '">' +
-        '<span class="signal-dot ' + (isReady ? "ok" : "warn") + '"></span>' +
+    var withInfo = candidates.map(function (r) {
+      var days = r.start_date ? daysBetweenISO(today, r.start_date) : null;
+      var blocked = !!BLOCKED_STEPS[r.current_step];
+      var cls = blocked ? "warn" : (days === null ? "neutral" : days < 0 ? "warn" : days <= 3 ? "soon" : "neutral");
+      return { row: r, days: days, cls: cls, sortKey: days === null ? Infinity : Math.abs(days) };
+    });
+    withInfo.sort(function (a, b) { return a.sortKey - b.sortKey; });
+    var overdueCount = withInfo.filter(function (x) { return x.days !== null && x.days < 0; }).length;
+    var soonCount = withInfo.filter(function (x) { return x.days !== null && x.days >= 0 && x.days <= 3; }).length;
+    var rowsHtml = withInfo.map(function (x) {
+      var r = x.row;
+      return '<div class="signal-row-item ' + x.cls + '" data-name="' + esc(r.full_name) + '">' +
+        '<span class="signal-dot ' + x.cls + '"></span>' +
         '<div class="signal-who"><div class="n">' + esc(r.full_name) + '</div><div class="r">' + esc(r.position) + '</div></div>' +
-        '<div class="signal-note">' + esc(x.info.note) + '</div>' +
+        '<div class="signal-note">' + esc(STEP_LABELS[r.current_step] || r.current_step) +
+        '<br><span style="opacity:.65">' + esc(daysPhrase(x.days)) + '</span></div>' +
         '</div>';
     }).join("");
     el.innerHTML =
-      '<div class="signal-summary"><div class="big">' + starters.length + '<small>' + esc(targetLabel) + '</small></div>' +
-      '<div class="split ok"><div class="n">' + ready.length + '</div><div class="k">готовы</div></div>' +
-      '<div class="split warn"><div class="n">' + notReady.length + '</div><div class="k">не готовы</div></div></div>' +
-      rowsHtml;
-    wireSignalRowClicks(el, ordered.map(function (x) { return x.row; }));
+      '<div class="signal-summary"><div class="big">' + withInfo.length + '<small>на пребординге</small></div>' +
+      '<div class="split warn"><div class="n">' + overdueCount + '</div><div class="k">просрочен старт</div></div>' +
+      '<div class="split soon"><div class="n">' + soonCount + '</div><div class="k">старт ≤3 дн.</div></div></div>' +
+      '<div class="signal-scroll">' + rowsHtml + '</div>';
+    wireSignalRowClicks(el, withInfo.map(function (x) { return x.row; }));
   }
 
   // Пользователь, 2026-09-16: «отработал 60 дней. Закрепляемость» —
