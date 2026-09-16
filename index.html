@@ -266,6 +266,7 @@
   .pill-active { background: var(--accent-soft); color: var(--accent-strong); }
   .pill-blocked { background: var(--danger-soft); color: var(--danger); }
   .pill-done { background: var(--success-soft); color: var(--success); }
+  .pill-extended { background: var(--warning-soft); color: var(--warning); margin-left: 0.3rem; }
 
   .mini-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.35rem; }
   .mini-stat {
@@ -276,6 +277,8 @@
   .mini-stat .k { font-size: 0.6rem; color: var(--text-faint); line-height: 1.2; }
   .mini-stat.warn { background: var(--danger-soft); }
   .mini-stat.warn .v { color: var(--danger); }
+  .mini-stat.extended { background: var(--warning-soft); }
+  .mini-stat.extended .v { color: var(--warning); }
   .mini-stat.ok .v { color: var(--success); }
 
   .blocked-note { font-size: 0.78rem; color: var(--danger); background: var(--danger-soft); border-radius: 9px; padding: 0.5rem 0.6rem; line-height: 1.35; }
@@ -333,6 +336,7 @@
   .is-signal-pill.risk { background: var(--danger-soft); color: var(--danger); }
   .is-signal-pill.watch { background: var(--warning-soft); color: var(--warning); }
   .is-signal-pill.ok { background: var(--success-soft); color: var(--success); }
+  .is-signal-pill.extended { background: var(--warning-soft); color: var(--warning); }
   .is-signal-days { text-align: right; font-family: var(--font-display); font-weight: 800; font-size: 0.8rem; white-space: nowrap; }
   .is-signal-days small { display: block; font-family: var(--font-body); font-weight: 600; font-size: 0.55rem; color: var(--text-faint); text-transform: uppercase; }
   .is-signal-track { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: var(--surface-alt); overflow: visible; position: relative; margin-top: 1px; }
@@ -473,6 +477,15 @@
       <div class="grid" id="cards"></div>
       <div class="loading" id="loading">Загружаю…</div>
       <div class="empty" id="empty" style="display:none">Ничего не найдено по заданным фильтрам.</div>
+    </section>
+
+    <section class="fade-in d3">
+      <h2>Закрепляемость</h2>
+      <div class="chart-card">
+        <div class="chart-title">Отработали 60+ дней с даты старта оффера</div>
+        <div class="stats" id="retentionStats" style="margin-bottom:0"></div>
+        <div class="funnel-note">Считается только по дате старта — увольнения бот пока не отслеживает, это не % удержания, а сколько человек дошли до контрольной точки 60 дней.</div>
+      </div>
     </section>
 
     <div class="errors" id="rowErrors"></div>
@@ -724,6 +737,7 @@
     renderMonthChart(rows);
     renderOverdueChart(rows);
     renderCards(rows);
+    renderRetentionStats(allRows);
   }
 
   function renderPeriodChip() {
@@ -738,15 +752,24 @@
   var STAT_ICONS = {
     is: '<path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>',
     overdue: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+    extended: '<path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>',
+    retained: '<path d="M4 12l5 5L20 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   };
 
+  // Пользователь, 2026-09-16: одобренное продление ИС (row.is_probation_extended)
+  // не должно считаться просрочкой — исключаем таких из счётчика "просрочили",
+  // но не прячем факт продления: отдельный счётчик рядом.
   function renderStats(rows) {
     var onIs = rows.filter(function (r) { return r.current_step === "is_tasks_created"; }).length;
-    var overdue = rows.filter(function (r) { return r.overdue_tasks_count > 0; }).length;
+    var overdue = rows.filter(function (r) { return r.overdue_tasks_count > 0 && !r.is_probation_extended; }).length;
+    var extended = rows.filter(function (r) { return r.is_probation_extended; }).length;
     var stats = [
       [onIs, "Сотрудников на ИС", "is", false],
       [overdue, "Сотрудники, которые просрочили ИС", "overdue", true],
     ];
+    if (extended > 0) {
+      stats.push([extended, "Продлён ИС (не просрочка)", "extended", false]);
+    }
     document.getElementById("stats").innerHTML = stats.map(function (s) {
       return '<div class="stat-card' + (s[3] ? " warn" : "") + '">' +
         '<span class="icon"><svg viewBox="0 0 24 24" fill="none">' + STAT_ICONS[s[2]] + '</svg></span>' +
@@ -819,7 +842,7 @@
 
   function renderOverdueChart(rows) {
     var el = document.getElementById("overdueChart");
-    var overdue = rows.filter(function (r) { return r.overdue_tasks_count > 0; })
+    var overdue = rows.filter(function (r) { return r.overdue_tasks_count > 0 && !r.is_probation_extended; })
       .sort(function (a, b) { return b.overdue_tasks_count - a.overdue_tasks_count; });
     if (!overdue.length) { chartEmpty(el, "Просрочек нет 🎉"); return; }
 
@@ -874,19 +897,21 @@
       var done = r.tasks_total - r.tasks_remaining;
       var pending = r.admitted_to_defense - r.defended;
 
+      var extendedBadge = r.is_probation_extended ? '<span class="pill pill-extended">Продлён ИС</span>' : "";
       var head = '<div class="card-head">' +
         '<div class="name-block"><p class="name">' + esc(r.full_name) + '</p>' +
         '<p class="role">' + esc(r.position) + (r.object_name ? " · " + esc(r.object_name) : "") + '</p></div>' +
-        '<span class="pill ' + pillClass + '">' + esc(step[0]) + '</span>' +
+        '<span class="pill ' + pillClass + '">' + esc(step[0]) + '</span>' + extendedBadge +
         '</div>';
 
+      var overdueClass = r.overdue_tasks_count > 0 ? (r.is_probation_extended ? " extended" : " warn") : "";
       var body = isBlocked
         ? '<div class="blocked-note">⚠️ Требует внимания — статус «' + esc(step[0]) + '».</div>'
         : '<div class="mini-stats">' +
             '<div class="mini-stat"><span class="v">' + done + '/' + r.tasks_total + '</span><span class="k">задач сделано</span></div>' +
             '<div class="mini-stat"><span class="v">' + pending + '</span><span class="k">готово к защите</span></div>' +
             '<div class="mini-stat ok"><span class="v">' + r.defended + '</span><span class="k">защищено</span></div>' +
-            '<div class="mini-stat' + (r.overdue_tasks_count > 0 ? ' warn' : '') + '"><span class="v">' + r.overdue_tasks_count + '</span><span class="k">просрочено</span></div>' +
+            '<div class="mini-stat' + overdueClass + '"><span class="v">' + r.overdue_tasks_count + '</span><span class="k">' + (r.is_probation_extended ? "продлено" : "просрочено") + '</span></div>' +
           '</div>';
 
       var evalLine = r.evaluation_score ? ' · оценка рук. ' + esc(r.evaluation_score) : "";
@@ -937,24 +962,22 @@
     return { ready: true, note: "Пребординг и АДАПТАЦИЯ пройдены" };
   }
 
+  // Пользователь, 2026-09-16: «не кто выходит сегодня - а те у кого
+  // оффер (дата старта за 3 дня до)» — это заблаговременное окно на
+  // подготовку, не отчёт по факту дня старта. Специально без фолбэка на
+  // "сегодня": если панель пуста, это и есть ответ — через 3 дня никто
+  // не стартует, готовить пока некого.
   function renderTomorrowPanel(rows) {
     var el = document.getElementById("tomorrowPanel");
     var today = todayISO();
-    var tomorrow = addDaysISO(today, 1);
-    // "Завтра" при отсутствии кандидатов на реальное завтра падаем на
-    // "сегодня" — иначе блок почти всегда пустой без всякой пользы для
-    // ревью. В проде и то, и другое — просто start_date === нужная дата.
-    var targetDate = tomorrow, targetLabel = "завтра " + formatDate(tomorrow);
+    var targetDate = addDaysISO(today, 3);
+    var targetLabel = "через 3 дня — " + formatDate(targetDate);
     var starters = rows.filter(function (r) { return r.start_date === targetDate; });
-    if (!starters.length) {
-      targetDate = today; targetLabel = "сегодня " + formatDate(today);
-      starters = rows.filter(function (r) { return r.start_date === targetDate; });
-    }
 
     if (!starters.length) {
       el.innerHTML =
         '<div class="signal-summary"><div class="big">0<small>' + esc(targetLabel) + '</small></div></div>' +
-        '<div class="signal-empty">Никто не выходит ' + esc(targetLabel) + '.</div>';
+        '<div class="signal-empty">Никто не стартует ' + esc(targetLabel) + '.</div>';
       return;
     }
     var withReadiness = starters.map(function (r) { return { row: r, info: fullReadiness(r) }; });
@@ -977,6 +1000,23 @@
     wireSignalRowClicks(el, ordered.map(function (x) { return x.row; }));
   }
 
+  // Пользователь, 2026-09-16: «отработал 60 дней. Закрепляемость» —
+  // считаем только по start_date, честно: бот не знает про увольнения,
+  // поэтому это не % удержания (который выглядел бы заниженным для
+  // недавних стартов), а простое "сколько человек дошли до 60-го дня".
+  function renderRetentionStats(rows) {
+    var el = document.getElementById("retentionStats");
+    if (!el) return;
+    var today = todayISO();
+    var reached60 = rows.filter(function (r) {
+      return r.start_date && daysBetweenISO(r.start_date, today) >= 60;
+    }).length;
+    el.innerHTML = '<div class="stat-card">' +
+      '<span class="icon"><svg viewBox="0 0 24 24" fill="none">' + STAT_ICONS.retained + '</svg></span>' +
+      '<span><div class="label">Отработали 60+ дней</div><div class="value">' + reached60 + '</div></span>' +
+      '</div>';
+  }
+
   // Первый дедлайн задачи ИС ~= конец 1-й недели — берём его минус 7 дней
   // как точку отсчёта старта ИС (для сравнения темпа). Без этого
   // «прошло % срока» посчитать не из чего — is_end_date у нас только
@@ -997,6 +1037,9 @@
     var status = "ok";
     if (elapsedFraction < 0.15) status = "watch";
     else if (doneFraction + 0.15 < elapsedFraction) status = "risk";
+    // Продлённый ИС уже согласован — не подсвечиваем красным "риском"
+    // то, что и так известно и одобрено руководителем.
+    if (row.is_probation_extended && status === "risk") status = "extended";
     var daysLeft = daysBetweenISO(today, row.is_end_date);
     return {
       elapsedFraction: elapsedFraction, doneFraction: doneFraction, status: status,
@@ -1017,7 +1060,7 @@
       el.innerHTML = head + '<div class="signal-empty">Пока никто не на ИС с известной датой окончания.</div>';
       return;
     }
-    var STATUS_LABEL = { ok: "в темпе", watch: "рано судить", risk: "риск" };
+    var STATUS_LABEL = { ok: "в темпе", watch: "рано судить", risk: "риск", extended: "продлён" };
     var rowsHtml = withPace.map(function (x) {
       var r = x.row, p = x.pace;
       return '<div class="is-signal-row ' + (p.status === "risk" ? "risk" : "") + '" data-name="' + esc(r.full_name) + '">' +
@@ -1098,6 +1141,9 @@
       var adDone = row.ad_tasks_done === row.ad_tasks_total;
       adLine = '<div class="r" style="margin-top:0.25rem;color:' + (adDone ? "var(--success)" : "var(--warning)") + '">' +
         'АДАПТАЦИЯ: ' + row.ad_tasks_done + '/' + row.ad_tasks_total + ' задач' + (adDone ? " — всё готово" : "") + '</div>';
+    }
+    if (row.is_probation_extended) {
+      adLine += '<div class="r" style="margin-top:0.25rem;color:var(--warning)">⏳ Продлён ИС — старые просроченные задачи не в счёт</div>';
     }
     document.getElementById("modalCard").innerHTML =
       '<div class="modal-head"><div><p class="n">' + esc(row.full_name) + '</p>' +
