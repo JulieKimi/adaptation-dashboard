@@ -101,6 +101,24 @@
     }
   }
 
+  /* ---------- skeleton loading ---------- */
+  .skeleton { position: relative; overflow: hidden; background: var(--surface-alt); border: 1px solid var(--border); }
+  .skeleton::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .skeleton::after { background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent); }
+  }
+  :root[data-theme="dark"] .skeleton::after { background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent); }
+  @media (prefers-reduced-motion: no-preference) {
+    .skeleton::after { animation: skeletonShine 1.3s ease-in-out infinite; }
+    @keyframes skeletonShine { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+  }
+  .skeleton-stat { height: 74px; border-radius: 16px; }
+  .skeleton-panel { height: 210px; border-radius: 16px; }
+  .skeleton-card { height: 176px; border-radius: 14px; }
+
   body {
     margin: 0; min-height: 100vh;
     background: var(--bg-glow), var(--bg);
@@ -190,11 +208,23 @@
   /* ---------- toolbar ---------- */
   .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; }
   .toolbar input[type="search"], .toolbar select {
-    font: inherit; font-size: 13.5px; padding: 8px 12px; border-radius: 9px;
-    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    font: inherit; font-size: 13.5px; padding: 8px 12px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface-alt); color: var(--text);
+    transition: border-color 0.12s ease, background 0.12s ease;
   }
-  .toolbar input[type="search"] { flex: 1 1 220px; min-width: 180px; }
+  .toolbar input[type="search"] { flex: 1 1 220px; min-width: 180px; background: var(--surface); border-radius: 9px; }
+  .toolbar select:hover { background: var(--border); }
+  .toolbar select.active { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); font-weight: 600; }
   .toolbar .spacer { flex: 1; }
+  .filter-count {
+    display: none; align-items: center; font-size: 12px; font-weight: 700; color: var(--accent-strong);
+    background: var(--accent-soft); border-radius: 999px; padding: 7px 12px; font-family: var(--font-display); white-space: nowrap;
+  }
+  .toolbar-clear {
+    display: none; align-items: center; font: inherit; font-size: 12.5px; color: var(--accent-strong);
+    background: none; border: 1px solid var(--accent); border-radius: 999px; padding: 7px 12px; cursor: pointer; white-space: nowrap;
+  }
+  .toolbar-clear:hover { background: var(--accent-soft); }
 
   /* ---------- section shell ---------- */
   section { margin-bottom: 1.8rem; }
@@ -216,11 +246,13 @@
   .chart-empty { padding: 28px 0; text-align: center; color: var(--text-muted); font-size: 12.5px; }
 
   .funnel { display: flex; flex-direction: column; gap: 0.55rem; }
-  .funnel-row { display: grid; grid-template-columns: 10rem 1fr 1.8rem; align-items: center; gap: 0.6rem; }
+  .funnel-row { display: grid; grid-template-columns: 10rem 1fr 3.6rem; align-items: center; gap: 0.6rem; padding: 0.15rem 0.3rem; border-radius: 7px; cursor: default; }
+  .funnel-row:hover { background: var(--surface-alt); }
   .funnel-label { font-size: 0.78rem; color: var(--text-muted); }
   .funnel-track { height: 18px; background: var(--surface-alt); border-radius: 6px; overflow: hidden; }
   .funnel-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--accent-strong), var(--accent)); transition: width 0.4s ease; }
-  .funnel-value { font-family: var(--font-display); font-weight: 800; font-size: 0.85rem; text-align: right; }
+  .funnel-value { font-family: var(--font-display); font-weight: 800; font-size: 0.85rem; text-align: right; white-space: nowrap; }
+  .funnel-pct { font-weight: 600; color: var(--text-faint); font-size: 0.68rem; margin-left: 0.2rem; }
   .funnel-note { font-size: 0.72rem; color: var(--text-faint); margin-top: 0.7rem; }
 
   /* ---------- overview charts ---------- */
@@ -240,7 +272,7 @@
   .viz-tooltip .v { font-weight: 700; }
   .viz-tooltip .k { opacity: 0.75; margin-left: 4px; }
 
-  @media (max-width: 900px) { .charts { grid-template-columns: 1fr; } .funnel-row { grid-template-columns: 7.4rem 1fr 1.6rem; } }
+  @media (max-width: 900px) { .charts { grid-template-columns: 1fr; } .funnel-row { grid-template-columns: 7.4rem 1fr 3.2rem; } }
 
   /* ---------- candidate cards ---------- */
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(252px, 1fr)); gap: 0.8rem; }
@@ -251,12 +283,21 @@
     transition: box-shadow 0.15s ease, transform 0.15s ease;
   }
   .card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+  .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .card.is-blocked { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
 
   .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+  .name-block-wrap { display: flex; align-items: flex-start; gap: 0.55rem; min-width: 0; flex: 1; }
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%; flex: none; margin-top: 0.05rem;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 800; font-size: 0.66rem; letter-spacing: 0.01em;
+  }
+  .name-block { min-width: 0; }
   .name-block .name { font-family: var(--font-display); font-weight: 700; font-size: 0.94rem; margin: 0; text-wrap: balance; line-height: 1.25; }
   .name-block .role { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.1rem; line-height: 1.3; }
 
+  .card-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; justify-content: flex-end; flex: none; max-width: 55%; }
   .pill {
     display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.66rem; font-weight: 700;
     padding: 0.22rem 0.5rem; border-radius: 999px; white-space: nowrap; flex: none;
@@ -266,7 +307,7 @@
   .pill-active { background: var(--accent-soft); color: var(--accent-strong); }
   .pill-blocked { background: var(--danger-soft); color: var(--danger); }
   .pill-done { background: var(--success-soft); color: var(--success); }
-  .pill-extended { background: var(--warning-soft); color: var(--warning); margin-left: 0.3rem; }
+  .pill-extended { background: var(--warning-soft); color: var(--warning); }
 
   .mini-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.35rem; }
   .mini-stat {
@@ -343,27 +384,34 @@
   .is-signal-fill { height: 100%; border-radius: 3px; background: var(--accent); }
   .is-signal-row.risk .is-signal-fill { background: var(--danger); }
   .is-signal-pace { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text); opacity: 0.3; }
-  .signal-empty { padding: 1.4rem 1rem; text-align: center; color: var(--text-faint); font-size: 0.78rem; }
+  .signal-empty { padding: 1.4rem 1rem; text-align: center; color: var(--text-faint); font-size: 0.78rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+  .signal-empty-icon { width: 30px; height: 30px; color: var(--text-faint); }
 
   /* ---------- candidate detail modal ---------- */
   .card { cursor: pointer; }
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(20, 18, 12, 0.45); backdrop-filter: blur(2px);
-    display: none; align-items: flex-start; justify-content: center; padding: 5vh 16px; z-index: 100; overflow-y: auto;
+    display: flex; align-items: flex-start; justify-content: center; padding: 5vh 16px; z-index: 100; overflow-y: auto;
+    opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.18s ease;
   }
-  .modal-overlay.open { display: flex; }
+  .modal-overlay.open { opacity: 1; visibility: visible; pointer-events: auto; }
   .modal-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow-lg);
     max-width: 720px; width: 100%; overflow: hidden; margin-bottom: 5vh;
+    transform: translateY(8px) scale(0.98); transition: transform 0.18s ease;
   }
+  .modal-overlay.open .modal-card { transform: none; }
+  @media (prefers-reduced-motion: reduce) { .modal-overlay, .modal-card { transition: none; } }
   .modal-head { padding: 1.1rem 1.4rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 0.8rem; }
   .modal-head .n { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; margin: 0; }
   .modal-head .r { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.15rem; }
-  .modal-close {
+  .modal-head-actions { display: flex; gap: 0.4rem; flex: none; }
+  .modal-close, .modal-copy {
     font: inherit; font-size: 0.75rem; color: var(--text-faint); background: var(--surface-alt); border: none;
     border-radius: 999px; width: 1.8rem; height: 1.8rem; cursor: pointer; flex: none;
+    display: flex; align-items: center; justify-content: center;
   }
-  .modal-close:hover { background: var(--border); }
+  .modal-close:hover, .modal-copy:hover { background: var(--border); }
   .modal-body { display: grid; grid-template-columns: 1fr 1.4fr; }
   @media (max-width: 640px) { .modal-body { grid-template-columns: 1fr; } }
   .modal-steps { padding: 1.1rem 1.4rem; border-right: 1px solid var(--border); }
@@ -445,6 +493,8 @@
         <option value="start_desc">Сначала недавние старты</option>
         <option value="remaining_desc">Сначала больше задач осталось</option>
       </select>
+      <span class="filter-count" id="filterCount"></span>
+      <button class="toolbar-clear" id="clearFiltersBtn">Сбросить фильтры</button>
       <div class="spacer"></div>
       <button class="logout" id="logoutBtn">Выйти</button>
     </div>
@@ -655,17 +705,22 @@
         allRows = payload.rows || [];
         document.getElementById("gate").style.display = "none";
         document.getElementById("app").style.display = "block";
+        var now = new Date();
+        var timeStr = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
         document.getElementById("headerRight").innerHTML =
           '<span class="period-chip" id="periodChip"></span>' +
-          '<span class="snapshot-badge"><span class="dot"></span>Живой дашборд</span>' +
+          '<span class="snapshot-badge"><span class="dot"></span>Обновлено в ' + timeStr + '</span>' +
           '<button class="logout" id="logoutBtn2">Выйти</button>';
         document.getElementById("logoutBtn2").addEventListener("click", doLogout);
         populateFilters(allRows);
         renderErrors(payload.errors || []);
         render();
+        openFromHashIfPresent();
       })
       .catch(function (e) {
         if (e.message !== "unauthorized") {
+          document.getElementById("cards").innerHTML = "";
+          document.getElementById("loading").style.display = "block";
           document.getElementById("loading").textContent = "Не удалось загрузить данные: " + e.message;
         }
       });
@@ -727,6 +782,7 @@
   function render() {
     var rows = filteredRows();
     renderPeriodChip();
+    updateFilterIndicator();
     renderStats(rows);
     // Сигнальные блоки — всегда по полному списку, не режем поиском/
     // фильтрами тулбара: это про "кто требует внимания сейчас", а не про
@@ -750,6 +806,7 @@
   }
 
   var STAT_ICONS = {
+    total: '<path d="M16 11a4 4 0 1 0-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="2"/>',
     is: '<path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>',
     overdue: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
     extended: '<path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>',
@@ -759,11 +816,15 @@
   // Пользователь, 2026-09-16: одобренное продление ИС (row.is_probation_extended)
   // не должно считаться просрочкой — исключаем таких из счётчика "просрочили",
   // но не прячем факт продления: отдельный счётчик рядом.
+  // Пользователь, 2026-09-17: остальные карточки показывали "1 просрочил"
+  // без базы для сравнения — "всего в адаптации" даёт знаменатель на глаз,
+  // и заодно уравновешивает сетку до нормального ряда.
   function renderStats(rows) {
     var onIs = rows.filter(function (r) { return r.current_step === "is_tasks_created"; }).length;
     var overdue = rows.filter(function (r) { return r.overdue_tasks_count > 0 && !r.is_probation_extended; }).length;
     var extended = rows.filter(function (r) { return r.is_probation_extended; }).length;
     var stats = [
+      [rows.length, "Всего в адаптации", "total", false],
       [onIs, "Сотрудников на ИС", "is", false],
       [overdue, "Сотрудники, которые просрочили ИС", "overdue", true],
     ];
@@ -778,6 +839,20 @@
     }).join("");
   }
 
+  function updateFilterIndicator() {
+    var search = document.getElementById("search").value.trim();
+    var month = document.getElementById("monthFilter").value;
+    var status = document.getElementById("statusFilter").value;
+    var active = [search, month, status].filter(Boolean).length;
+    var countEl = document.getElementById("filterCount");
+    var clearBtn = document.getElementById("clearFiltersBtn");
+    countEl.style.display = active ? "inline-flex" : "none";
+    countEl.textContent = active ? "Фильтры: " + active : "";
+    clearBtn.style.display = active ? "inline-flex" : "none";
+    document.getElementById("monthFilter").classList.toggle("active", !!month);
+    document.getElementById("statusFilter").classList.toggle("active", !!status);
+  }
+
   // Воронка — три реальных этапа из БД адаптация-бота. Четвёртый,
   // «Новые офферы», требует данных офферов-бота — см. funnel-note в разметке.
   function renderFunnel(rows) {
@@ -787,14 +862,20 @@
       ["Прошли ИС", rows.filter(function (r) { return r.current_step === "is_completed"; }).length],
     ];
     var max = stages[0][1] || 1;
-    document.getElementById("funnel").innerHTML = stages.map(function (s) {
-      var pct = max ? (s[1] / max * 100) : 0;
-      return '<div class="funnel-row">' +
+    var el = document.getElementById("funnel");
+    el.innerHTML = stages.map(function (s, i) {
+      var pct = max ? Math.round(s[1] / max * 100) : 0;
+      var pctLabel = i === 0 ? "" : '<span class="funnel-pct">' + pct + '%</span>';
+      var tip = s[0] + ": " + s[1] + " из " + max + " (" + pct + "%)";
+      return '<div class="funnel-row" data-label="' + esc(tip) + '" data-value="' + s[1] + '">' +
         '<div class="funnel-label">' + esc(s[0]) + '</div>' +
         '<div class="funnel-track"><div class="funnel-fill" style="width:' + pct + '%"></div></div>' +
-        '<div class="funnel-value">' + s[1] + '</div>' +
+        '<div class="funnel-value">' + s[1] + pctLabel + '</div>' +
         '</div>';
     }).join("");
+    wireBarTooltips(el, function (mark) {
+      return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") };
+    }, ".funnel-row");
   }
 
   function chartEmpty(el, text) { el.innerHTML = '<div class="chart-empty">' + esc(text) + "</div>"; }
@@ -869,9 +950,9 @@
     });
   }
 
-  function wireBarTooltips(container, describe) {
+  function wireBarTooltips(container, describe, selector) {
     var tip = document.getElementById("vizTooltip");
-    container.querySelectorAll(".bar-mark").forEach(function (mark) {
+    container.querySelectorAll(selector || ".bar-mark").forEach(function (mark) {
       mark.addEventListener("pointermove", function (e) {
         var d = describe(mark);
         tip.innerHTML = '<span class="v"></span><span class="k"></span>';
@@ -883,6 +964,25 @@
       });
       mark.addEventListener("pointerleave", function () { tip.style.display = "none"; });
     });
+  }
+
+  // Пользователь, 2026-09-17: карточки — сплошной текст, глазу не за что
+  // зацепиться при просмотре десятков подряд. Цветной кружок с инициалами
+  // даёт точку быстрого визуального сканирования, цвет — детерминированный
+  // по имени (не несёт смысла статуса, просто разводит соседние карточки).
+  var AVATAR_PALETTE = [
+    { bg: "var(--accent-soft)", fg: "var(--accent-strong)" },
+    { bg: "var(--success-soft)", fg: "var(--success)" },
+    { bg: "var(--warning-soft)", fg: "var(--warning)" },
+    { bg: "var(--danger-soft)", fg: "var(--danger)" },
+  ];
+  function avatarFor(name) {
+    var parts = name.trim().split(/\s+/);
+    var initials = ((parts[0] || "")[0] || "") + ((parts[1] || "")[0] || "");
+    var hash = 0;
+    for (var i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+    var c = AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
+    return '<span class="avatar" style="background:' + c.bg + ';color:' + c.fg + '">' + esc(initials.toUpperCase()) + '</span>';
   }
 
   function renderCards(rows) {
@@ -899,9 +999,10 @@
 
       var extendedBadge = r.is_probation_extended ? '<span class="pill pill-extended">Продлён ИС</span>' : "";
       var head = '<div class="card-head">' +
+        '<div class="name-block-wrap">' + avatarFor(r.full_name) +
         '<div class="name-block"><p class="name">' + esc(r.full_name) + '</p>' +
-        '<p class="role">' + esc(r.position) + (r.object_name ? " · " + esc(r.object_name) : "") + '</p></div>' +
-        '<span class="pill ' + pillClass + '">' + esc(step[0]) + '</span>' + extendedBadge +
+        '<p class="role">' + esc(r.position) + (r.object_name ? " · " + esc(r.object_name) : "") + '</p></div></div>' +
+        '<div class="card-badges"><span class="pill ' + pillClass + '">' + esc(step[0]) + '</span>' + extendedBadge + '</div>' +
         '</div>';
 
       var overdueClass = r.overdue_tasks_count > 0 ? (r.is_probation_extended ? " extended" : " warn") : "";
@@ -920,12 +1021,16 @@
 
       var foot = '<div class="card-foot">' + esc(r.manager_full_name ? "рук. " + r.manager_full_name : "руководитель не указан") + evalLine + '</div>';
 
-      return '<article class="card' + (isBlocked ? ' is-blocked' : '') + '" data-idx="' + rows.indexOf(r) + '">' + head + body + dates + foot + '</article>';
+      return '<article class="card' + (isBlocked ? ' is-blocked' : '') + '" data-idx="' + rows.indexOf(r) +
+        '" role="button" tabindex="0" aria-label="Открыть карточку: ' + esc(r.full_name) + '">' +
+        head + body + dates + foot + '</article>';
     }).join("");
 
     wrap.querySelectorAll(".card").forEach(function (cardEl) {
-      cardEl.addEventListener("click", function () {
-        openCandidateModal(rows[Number(cardEl.getAttribute("data-idx"))]);
+      var open = function () { openCandidateModal(rows[Number(cardEl.getAttribute("data-idx"))]); };
+      cardEl.addEventListener("click", open);
+      cardEl.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
       });
     });
   }
@@ -977,7 +1082,9 @@
     if (!starters.length) {
       el.innerHTML =
         '<div class="signal-summary"><div class="big">0<small>' + esc(targetLabel) + '</small></div></div>' +
-        '<div class="signal-empty">Никто не стартует ' + esc(targetLabel) + '.</div>';
+        '<div class="signal-empty"><svg class="signal-empty-icon" viewBox="0 0 24 24" fill="none">' +
+        '<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+        'Никто не стартует ' + esc(targetLabel) + '.</div>';
       return;
     }
     var withReadiness = starters.map(function (r) { return { row: r, info: fullReadiness(r) }; });
@@ -1057,7 +1164,9 @@
       '<span style="font-family:var(--font-display);font-weight:700;font-size:0.82rem">Статус ИС — сроки и риск</span></div>';
 
     if (!withPace.length) {
-      el.innerHTML = head + '<div class="signal-empty">Пока никто не на ИС с известной датой окончания.</div>';
+      el.innerHTML = head + '<div class="signal-empty"><svg class="signal-empty-icon" viewBox="0 0 24 24" fill="none">' +
+        '<rect x="3.5" y="5" width="17" height="15" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' +
+        'Пока никто не на ИС с известной датой окончания.</div>';
       return;
     }
     var STATUS_LABEL = { ok: "в темпе", watch: "рано судить", risk: "риск", extended: "продлён" };
@@ -1133,6 +1242,13 @@
     }).join("");
   }
 
+  // Пользователь, 2026-09-17: «нет способа быстро среагировать» на
+  // сигнальные панели — самое дешёвое улучшение без бэкенда: ссылка на
+  // конкретную карточку, чтобы её можно было переслать руководителю в
+  // чат. full_name как идентификатор — тот же подход, что уже везде в
+  // этом файле (data-name у сигнальных строк), в payload нет числового id.
+  function candidateHash(name) { return "#c=" + encodeURIComponent(name); }
+
   function openCandidateModal(row) {
     var done = row.tasks ? row.tasks.filter(function (t) { return t.is_done; }).length : 0;
     var total = row.tasks ? row.tasks.length : 0;
@@ -1148,17 +1264,38 @@
     document.getElementById("modalCard").innerHTML =
       '<div class="modal-head"><div><p class="n">' + esc(row.full_name) + '</p>' +
       '<div class="r">' + esc(row.position) + (row.object_name ? " · " + esc(row.object_name) : "") + '</div>' + adLine + '</div>' +
-      '<button class="modal-close" id="modalCloseBtn">✕</button></div>' +
+      '<div class="modal-head-actions">' +
+      '<button class="modal-copy" id="modalCopyBtn" title="Скопировать ссылку на карточку">🔗</button>' +
+      '<button class="modal-close" id="modalCloseBtn">✕</button></div></div>' +
       '<div class="modal-body">' +
       '<div class="modal-steps"><h4>Этапы</h4><div class="step-timeline">' + renderStepTimeline(row) + '</div></div>' +
       '<div class="modal-tasks"><h4>Задачи ИС' + (total ? " (" + total + ") — " + done + " выполнено" : "") + '</h4>' + renderModalTasks(row) + '</div>' +
       '</div>';
+    history.replaceState(null, "", location.pathname + location.search + candidateHash(row.full_name));
     document.getElementById("modalOverlay").classList.add("open");
     document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
+    document.getElementById("modalCopyBtn").addEventListener("click", function () {
+      var btn = document.getElementById("modalCopyBtn");
+      if (!navigator.clipboard) return;
+      navigator.clipboard.writeText(location.href).then(function () {
+        btn.textContent = "✓";
+        setTimeout(function () { if (document.getElementById("modalCopyBtn")) btn.textContent = "🔗"; }, 1500);
+      });
+    });
   }
 
   function closeModal() {
     document.getElementById("modalOverlay").classList.remove("open");
+    if (location.hash.indexOf("#c=") === 0) {
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+  }
+
+  function openFromHashIfPresent() {
+    var m = /^#c=(.+)$/.exec(location.hash);
+    if (!m) return;
+    var row = allRows.filter(function (r) { return r.full_name === decodeURIComponent(m[1]); })[0];
+    if (row) openCandidateModal(row);
   }
 
   document.getElementById("modalOverlay").addEventListener("click", function (e) {
@@ -1180,9 +1317,32 @@
     el.addEventListener(id === "search" ? "input" : "change", render);
   });
   document.getElementById("logoutBtn").addEventListener("click", doLogout);
+  document.getElementById("clearFiltersBtn").addEventListener("click", function () {
+    document.getElementById("search").value = "";
+    document.getElementById("monthFilter").value = "";
+    document.getElementById("statusFilter").value = "";
+    render();
+  });
+
+  function skeletonGrid(n, className) {
+    var out = "";
+    for (var i = 0; i < n; i++) out += '<div class="skeleton ' + className + '"></div>';
+    return out;
+  }
+
+  function showInitialSkeleton() {
+    document.getElementById("gate").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    document.getElementById("stats").innerHTML = skeletonGrid(2, "skeleton-stat");
+    document.getElementById("tomorrowPanel").innerHTML = '<div class="skeleton skeleton-panel"></div>';
+    document.getElementById("isRiskPanel").innerHTML = '<div class="skeleton skeleton-panel"></div>';
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("cards").innerHTML = skeletonGrid(6, "skeleton-card");
+  }
 
   consumeHashToken();
   if (getToken()) {
+    showInitialSkeleton();
     fetchData();
   } else {
     showGate();
