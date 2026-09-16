@@ -280,13 +280,27 @@
      сделать в формате кликабельного списка. И список спустить ниже» —
      сетка карточек заменена на один кликабельный список строк; статус
      риска ИС (раньше отдельная панель) теперь колонка внутри каждой
-     строки, см. candidateRiskInfo. */
+     строки, см. candidateRiskInfo.
+     Пользователь, 2026-09-17 (второй проход): «тяжеловато читается» —
+     бейдж статуса и пилюля риска были одного тёплого тона и сливались в
+     одно пятно. Теперь цветную пилюлю получают только реальные тревоги
+     (риск, продлён, заблокирован) — «рано судить»/«в темпе» стали тихой
+     точкой+текстом, не бейджем. Колонка с датами убрана (даты и так есть
+     в модалке по клику) — остался только руководитель, без правого
+     выравнивания. Плюс заголовки колонок и более заметный прогресс-бар. */
+  .candidate-list-head {
+    display: grid; grid-template-columns: minmax(190px, 1.5fr) auto minmax(150px, 1.1fr) minmax(150px, 1.1fr) minmax(120px, 1fr);
+    gap: 0.9rem 1.1rem; padding: 0 1.2rem 0.5rem; font-size: 0.66rem; font-weight: 700;
+    color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  @media (max-width: 980px) { .candidate-list-head { display: none; } }
+
   .candidate-list { display: flex; flex-direction: column; gap: 0.6rem; }
   .candidate-row {
     background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
-    padding: 0.8rem 1.15rem; box-shadow: var(--shadow); cursor: pointer;
+    padding: 1rem 1.2rem; box-shadow: var(--shadow); cursor: pointer;
     display: grid; align-items: center; gap: 0.9rem 1.1rem;
-    grid-template-columns: minmax(190px, 1.5fr) auto minmax(120px, 0.9fr) minmax(150px, 1.1fr) minmax(140px, 1fr);
+    grid-template-columns: minmax(190px, 1.5fr) auto minmax(150px, 1.1fr) minmax(150px, 1.1fr) minmax(120px, 1fr);
     grid-template-areas: "id badges progress risk meta";
     transition: box-shadow 0.15s ease, transform 0.15s ease;
   }
@@ -294,15 +308,15 @@
   .candidate-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .candidate-row.is-blocked { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
 
-  .name-block-wrap { grid-area: id; display: flex; align-items: flex-start; gap: 0.55rem; min-width: 0; }
+  .name-block-wrap { grid-area: id; display: flex; align-items: flex-start; gap: 0.6rem; min-width: 0; }
   .avatar {
-    width: 30px; height: 30px; border-radius: 50%; flex: none; margin-top: 0.05rem;
+    width: 32px; height: 32px; border-radius: 50%; flex: none; margin-top: 0.05rem;
     display: flex; align-items: center; justify-content: center;
     font-family: var(--font-display); font-weight: 800; font-size: 0.66rem; letter-spacing: 0.01em;
   }
   .name-block { min-width: 0; }
-  .name-block .name { font-family: var(--font-display); font-weight: 700; font-size: 0.9rem; margin: 0; text-wrap: balance; line-height: 1.25; }
-  .name-block .role { font-size: 0.73rem; color: var(--text-muted); margin-top: 0.1rem; line-height: 1.3; }
+  .name-block .name { font-family: var(--font-display); font-weight: 700; font-size: 0.92rem; margin: 0; text-wrap: balance; line-height: 1.3; }
+  .name-block .role { font-size: 0.74rem; color: var(--text-muted); margin-top: 0.15rem; line-height: 1.35; }
 
   .candidate-badges { grid-area: badges; display: flex; flex-wrap: wrap; gap: 0.3rem; }
   .pill {
@@ -317,25 +331,31 @@
   .pill-extended { background: var(--warning-soft); color: var(--warning); }
 
   .candidate-progress { grid-area: progress; min-width: 0; }
-  .candidate-progress .n { font-family: var(--font-display); font-weight: 800; font-size: 0.82rem; }
-  .candidate-progress .k { font-size: 0.62rem; color: var(--text-faint); }
-  .candidate-progress .bar { height: 5px; border-radius: 3px; background: var(--surface-alt); margin-top: 0.32rem; overflow: hidden; }
-  .candidate-progress .fill { height: 100%; border-radius: 3px; background: var(--accent); }
+  .candidate-progress .n { font-family: var(--font-display); font-weight: 800; font-size: 0.84rem; }
+  .candidate-progress .k { font-size: 0.64rem; color: var(--text-faint); }
+  .candidate-progress .bar {
+    height: 8px; border-radius: 4px; background: var(--surface-alt); border: 1px solid var(--border);
+    margin-top: 0.4rem; overflow: hidden;
+  }
+  .candidate-progress .fill { height: 100%; background: var(--accent); }
   .candidate-progress .fill.warn { background: var(--danger); }
   .candidate-progress .fill.extended { background: var(--warning); }
+  .candidate-progress .defense { font-size: 0.64rem; color: var(--text-faint); margin-top: 0.32rem; }
 
-  .candidate-risk { grid-area: risk; font-size: 0.7rem; color: var(--text-faint); min-width: 0; line-height: 1.4; }
-  .candidate-risk .note { margin-top: 0.2rem; }
+  .candidate-risk { grid-area: risk; font-size: 0.72rem; color: var(--text-faint); min-width: 0; line-height: 1.45; }
+  .candidate-risk .note { margin-top: 0.25rem; }
+  .risk-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 0.4rem; flex: none; }
+  .risk-dot.ok { background: var(--success); }
+  .risk-dot.neutral { background: var(--text-faint); }
+  .risk-quiet { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; }
 
-  .candidate-meta { grid-area: meta; font-size: 0.68rem; color: var(--text-faint); text-align: right; line-height: 1.55; }
-  .candidate-meta b { color: var(--text-muted); font-weight: 600; }
+  .candidate-meta { grid-area: meta; font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; }
 
   @media (max-width: 980px) {
     .candidate-row {
       grid-template-columns: 1fr 1fr;
       grid-template-areas: "id id" "badges badges" "progress risk" "meta meta";
     }
-    .candidate-meta { text-align: left; }
   }
   @media (max-width: 560px) {
     .candidate-row { grid-template-columns: 1fr; grid-template-areas: "id" "badges" "progress" "risk" "meta"; }
@@ -537,6 +557,9 @@
 
     <section class="fade-in d3">
       <h2>Кандидаты</h2>
+      <div class="candidate-list-head">
+        <span>Кандидат</span><span>Статус</span><span>Прогресс ИС</span><span>Риск</span><span>Руководитель</span>
+      </div>
       <div class="candidate-list" id="cards"></div>
       <div class="loading" id="loading">Загружаю…</div>
       <div class="empty" id="empty" style="display:none">Ничего не найдено по заданным фильтрам.</div>
@@ -1002,18 +1025,26 @@
   // (isPaceInfo); ещё на пребординге — то же "через N дней"/"просрочен
   // старт", что и в верхней сигнальной панели (daysPhrase), для единого
   // языка на странице.
+  // Пользователь, 2026-09-17 (второй проход): «рано судить»/«в темпе» —
+  // не тревоги, а дефолтное состояние для большинства свежих стартов;
+  // сплошная цветная пилюля здесь только шумит рядом с бейджем статуса
+  // слева (то же тёплое пятно). Цветной пилюлей остаются только реальные
+  // тревоги — риск и продлён; остальное — тихая точка + текст.
   function candidateRiskInfo(row) {
     var pace = isPaceInfo(row);
     if (pace) {
+      var isAlarm = pace.status === "risk" || pace.status === "extended";
       return {
-        pillClass: pace.status,
-        pillText: PACE_STATUS_LABEL[pace.status],
+        pillClass: isAlarm ? pace.status : null,
+        pillText: isAlarm ? PACE_STATUS_LABEL[pace.status] : null,
+        dotClass: isAlarm ? null : (pace.status === "ok" ? "ok" : "neutral"),
+        quietText: isAlarm ? null : PACE_STATUS_LABEL[pace.status],
         note: pace.daysLeft + " дн. · до " + formatDate(row.is_end_date),
       };
     }
     if (!isPreboardingDone(row.current_step)) {
       var days = row.start_date ? daysBetweenISO(todayISO(), row.start_date) : null;
-      return { pillClass: null, pillText: null, note: daysPhrase(days) };
+      return { pillClass: null, pillText: null, dotClass: null, quietText: null, note: daysPhrase(days) };
     }
     return null;
   }
@@ -1057,19 +1088,20 @@
       var risk = candidateRiskInfo(r);
       var riskHtml = '<div class="candidate-risk">';
       if (risk) {
-        riskHtml += (risk.pillText ? '<span class="is-signal-pill ' + risk.pillClass + '">' + esc(risk.pillText) + '</span>' : "") +
-          '<div class="note">' + esc(risk.note) + '</div>';
+        var riskHead = risk.pillText
+          ? '<span class="is-signal-pill ' + risk.pillClass + '">' + esc(risk.pillText) + '</span>'
+          : (risk.quietText ? '<span class="risk-dot ' + risk.dotClass + '"></span><span class="risk-quiet">' + esc(risk.quietText) + '</span>' : "");
+        riskHtml += riskHead + '<div class="note">' + esc(risk.note) + '</div>';
       } else {
         riskHtml += '<div class="note">—</div>';
       }
       riskHtml += '</div>';
 
-      var evalLine = r.evaluation_score ? '<div>Оценка рук.: <b>' + esc(r.evaluation_score) + '</b></div>' : "";
+      // Даты старта/завершения ИС и оценка руководителя — уже есть в
+      // модалке по клику (полный таймлайн), в строке списка от них
+      // только шум. Оставляем только руководителя.
       var meta = '<div class="candidate-meta">' +
-        '<div>Старт: <b>' + formatDate(r.start_date) + '</b></div>' +
-        '<div>Завершение ИС: <b>' + formatDate(r.is_end_date) + '</b></div>' +
-        '<div>' + esc(r.manager_full_name ? "рук. " + r.manager_full_name : "руководитель не указан") + '</div>' +
-        evalLine +
+        esc(r.manager_full_name ? "рук. " + r.manager_full_name : "руководитель не указан") +
         '</div>';
 
       return '<article class="candidate-row' + (isBlocked ? ' is-blocked' : '') + '" data-idx="' + rows.indexOf(r) +
@@ -1308,9 +1340,16 @@
     if (row.is_probation_extended) {
       adLine += '<div class="r" style="margin-top:0.25rem;color:var(--warning)">⏳ Продлён ИС — старые просроченные задачи не в счёт</div>';
     }
+    // Пользователь, 2026-09-17 (второй проход): даты/оценку убрали из
+    // строки списка (шумели там) — переехали сюда, единственное место,
+    // где они теперь показаны целиком.
+    var evalLine = row.evaluation_score ? " · оценка рук. " + esc(row.evaluation_score) : "";
+    var infoLine = '<div class="r" style="margin-top:0.25rem">Старт: <b>' + formatDate(row.start_date) +
+      '</b> · Завершение ИС: <b>' + formatDate(row.is_end_date) + '</b>' + evalLine + '</div>';
     document.getElementById("modalCard").innerHTML =
       '<div class="modal-head"><div><p class="n">' + esc(row.full_name) + '</p>' +
-      '<div class="r">' + esc(row.position) + (row.object_name ? " · " + esc(row.object_name) : "") + '</div>' + adLine + '</div>' +
+      '<div class="r">' + esc(row.position) + (row.object_name ? " · " + esc(row.object_name) : "") + '</div>' +
+      infoLine + adLine + '</div>' +
       '<div class="modal-head-actions">' +
       '<button class="modal-copy" id="modalCopyBtn" title="Скопировать ссылку на карточку">🔗</button>' +
       '<button class="modal-close" id="modalCloseBtn">✕</button></div></div>' +
