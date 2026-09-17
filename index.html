@@ -28,6 +28,7 @@
     --warning-soft: #fbf0da;
     --danger: #c1392b;
     --danger-soft: #fbeae7;
+    --purple: #7f77dd;
     --neutral-pill-bg: #edeae0;
     --neutral-pill-fg: #55503f;
     --shadow: 0 1px 2px rgba(33, 31, 25, 0.05), 0 12px 28px -14px rgba(33, 31, 25, 0.16);
@@ -57,6 +58,7 @@
       --warning-soft: #3a2e13;
       --danger: #e8887c;
       --danger-soft: #3a2119;
+      --purple: #afa9ec;
       --neutral-pill-bg: #2c2919;
       --neutral-pill-fg: #cdc6ac;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.55);
@@ -82,6 +84,7 @@
     --warning-soft: #3a2e13;
     --danger: #e8887c;
     --danger-soft: #3a2119;
+    --purple: #afa9ec;
     --neutral-pill-bg: #2c2919;
     --neutral-pill-fg: #cdc6ac;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.55);
@@ -282,6 +285,30 @@
      риска ИС (раньше отдельная панель) теперь колонка внутри каждой
      строки, см. candidateRiskInfo. */
   .candidate-list { display: flex; flex-direction: column; gap: 0.6rem; }
+
+  /* Пользователь, 2026-09-17: легенда цветов полосы — плавающая в левом
+     поле страницы (main отцентрован с max-width, снаружи как раз пусто
+     на широких экранах). .legend-gutter — абсолютно спозиционированный
+     блок высотой во всю секцию «Кандидаты» (родитель — .candidates-
+     section с position:relative); .legend-sticky внутри него —
+     обычный position:sticky, поэтому едет со скроллом сам по себе,
+     никакого JS на scroll не нужно — sticky естественно перестаёт
+     липнуть, как только заканчивается высота .legend-gutter, то есть
+     секции. На узких экранах, где слева нет места, просто прячем. */
+  .candidates-section { position: relative; }
+  .legend-gutter { position: absolute; top: 0; bottom: 0; left: -234px; width: 204px; pointer-events: none; }
+  .legend-sticky {
+    position: sticky; top: 96px; pointer-events: auto;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 0.9rem 1rem;
+  }
+  .legend-title {
+    font-family: var(--font-display); font-size: 0.66rem; font-weight: 700; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.6rem;
+  }
+  .legend-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.76rem; color: var(--text-muted); padding: 0.3rem 0; }
+  .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  @media (max-width: 1560px) { .legend-gutter { display: none; } }
   .candidate-row {
     background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
     padding: 0.8rem 1.15rem; box-shadow: var(--shadow); cursor: pointer;
@@ -550,7 +577,24 @@
       </div>
     </section>
 
-    <section class="fade-in d3">
+    <section class="fade-in d3 candidates-section">
+      <!-- Пользователь, 2026-09-17: полоса статуса слева вместо кружка +
+           плавающая легенда в левом поле страницы — едет вместе со
+           скроллом, пока не кончится секция «Кандидаты» (обычный CSS
+           position:sticky внутри position:relative-родителя, границы
+           родителя = границы секции, ничего вручную на scroll не
+           считаем). Видна только на широких экранах, где это поле
+           вообще пустует — на уже узких сама секция ужимается. -->
+      <div class="legend-gutter">
+        <div class="legend-sticky">
+          <div class="legend-title">Статус</div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--text-faint)"></span>Пребординг</div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--warning)"></span>ИС, в процессе</div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--danger)"></span>Риск / заблокирован</div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--purple)"></span>Продлён ИС</div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--success)"></span>ИС пройден</div>
+        </div>
+      </div>
       <h2>Кандидаты</h2>
       <div class="candidate-list" id="cards"></div>
       <div class="loading" id="loading">Загружаю…</div>
@@ -993,23 +1037,27 @@
     });
   }
 
-  // Пользователь, 2026-09-17: карточки — сплошной текст, глазу не за что
-  // зацепиться при просмотре десятков подряд. Цветной кружок с инициалами
-  // даёт точку быстрого визуального сканирования, цвет — детерминированный
-  // по имени (не несёт смысла статуса, просто разводит соседние карточки).
-  var AVATAR_PALETTE = [
-    { bg: "var(--accent-soft)", fg: "var(--accent-strong)" },
-    { bg: "var(--success-soft)", fg: "var(--success)" },
-    { bg: "var(--warning-soft)", fg: "var(--warning)" },
-    { bg: "var(--danger-soft)", fg: "var(--danger)" },
-  ];
-  function avatarFor(name) {
-    var parts = name.trim().split(/\s+/);
-    var initials = ((parts[0] || "")[0] || "") + ((parts[1] || "")[0] || "");
-    var hash = 0;
-    for (var i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-    var c = AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
-    return '<span class="avatar" style="background:' + c.bg + ';color:' + c.fg + '">' + esc(initials.toUpperCase()) + '</span>';
+  // Пользователь, 2026-09-17: кружок с инициалами красился случайно (хеш
+  // имени), цвет ничего не значил, хотя выглядел как те же тона, что и
+  // настоящие статусы — путало. Убрали кружок, вместо него полоса слева
+  // по всей высоте карточки, цвет которой — реальная категория, та же,
+  // что в плавающей легенде рядом со списком (см. .legend-gutter).
+  var CATEGORY_STRIPE = {
+    preboarding: "var(--text-faint)",
+    is: "var(--warning)",
+    risk: "var(--danger)",
+    blocked: "var(--danger)",
+    extended: "var(--purple)",
+    done: "var(--success)",
+  };
+  function candidateCategory(row, stepKind) {
+    if (stepKind === "blocked") return "blocked";
+    if (stepKind === "done") return "done";
+    if (!isPreboardingDone(row.current_step)) return "preboarding";
+    if (row.is_probation_extended) return "extended";
+    var pace = isPaceInfo(row);
+    if (pace && pace.status === "risk") return "risk";
+    return "is";
   }
 
   // Статус/риск ИС для строки списка — на ИС с известной датой конца
@@ -1054,7 +1102,8 @@
       // правой колонке с датами, переехало под «Должность · Объект» в
       // левый блок, выделено акцентным цветом (та же личность, что и
       // должность — логично держать рядом).
-      var idBlock = '<div class="name-block-wrap">' + avatarFor(r.full_name) +
+      var category = candidateCategory(r, step[1]);
+      var idBlock = '<div class="name-block-wrap">' +
         '<div class="name-block"><p class="name">' + esc(r.full_name) + '</p>' +
         '<p class="role">' + esc(r.position) + (r.object_name ? " · " + esc(r.object_name) : "") + '</p>' +
         '<p class="manager-line">' + esc(r.manager_full_name ? "рук. " + r.manager_full_name : "руководитель не указан") + '</p>' +
@@ -1112,7 +1161,7 @@
         '</div>';
 
       return '<article class="candidate-row' + (isBlocked ? ' is-blocked' : '') + '" data-idx="' + rows.indexOf(r) +
-        '" role="button" tabindex="0" aria-label="Открыть карточку: ' + esc(r.full_name) + '">' +
+        '" style="border-left:5px solid ' + CATEGORY_STRIPE[category] + '" role="button" tabindex="0" aria-label="Открыть карточку: ' + esc(r.full_name) + '">' +
         idBlock + badges + progress + riskHtml + meta + '</article>';
     }).join("");
 
