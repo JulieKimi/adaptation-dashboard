@@ -1019,9 +1019,14 @@
   function candidateRiskInfo(row) {
     var pace = isPaceInfo(row);
     if (pace) {
+      // Пользователь, 2026-09-17: «рано судить»/«в темпе» — убрать
+      // совсем (пустая колонка, дни до конца остаются) — для этих двух
+      // состояний пилюля не несёт решения, только риск и продление
+      // требуют реакции.
+      var isAlarm = pace.status === "risk" || pace.status === "extended";
       return {
-        pillClass: pace.status,
-        pillText: PACE_STATUS_LABEL[pace.status],
+        pillClass: isAlarm ? pace.status : null,
+        pillText: isAlarm ? PACE_STATUS_LABEL[pace.status] : null,
         note: pace.daysLeft + " дн. · до " + formatDate(row.is_end_date),
       };
     }
@@ -1047,8 +1052,15 @@
         '<div class="name-block"><p class="name">' + esc(r.full_name) + '</p>' +
         '<p class="role">' + esc(r.position) + (r.object_name ? " · " + esc(r.object_name) : "") + '</p></div></div>';
 
-      var extendedBadge = r.is_probation_extended ? '<span class="pill pill-extended">Продлён ИС</span>' : "";
-      var badges = '<div class="candidate-badges"><span class="pill ' + pillClass + '">' + esc(step[0]) + '</span>' + extendedBadge + '</div>';
+      // Пользователь, 2026-09-17: «Задачи ИС» (is_tasks_created) —
+      // одинаковый текст у всех, кто уже на ИС-треке, не различает людей,
+      // убрать. Остальные статусы (заблокирован, конкретный шаг
+      // пребординга, "ИС пройден") остаются — там текст меняется от
+      // человека к человеку. «Продлён ИС» тоже убран из статуса — та же
+      // пилюля уже есть в колонке риска, дублирование.
+      var badges = r.current_step === "is_tasks_created"
+        ? ""
+        : '<div class="candidate-badges"><span class="pill ' + pillClass + '">' + esc(step[0]) + '</span></div>';
 
       var progress;
       if (isBlocked) {
@@ -1080,7 +1092,7 @@
 
       var evalLine = r.evaluation_score ? '<div>Оценка рук.: <b>' + esc(r.evaluation_score) + '</b></div>' : "";
       var meta = '<div class="candidate-meta">' +
-        '<div>Старт: <b>' + formatDate(r.start_date) + '</b></div>' +
+        '<div>Старт ИС: <b>' + formatDate(r.start_date) + '</b></div>' +
         '<div>Завершение ИС: <b>' + formatDate(r.is_end_date) + '</b></div>' +
         '<div>' + esc(r.manager_full_name ? "рук. " + r.manager_full_name : "руководитель не указан") + '</div>' +
         evalLine +
