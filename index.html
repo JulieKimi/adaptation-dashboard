@@ -503,11 +503,12 @@
   </section>
 
   <section id="app">
-    <div class="stats fade-in" id="stats"></div>
-
-    <section class="signal-panel fade-in d1" id="tomorrowPanel"></section>
-
-    <div class="toolbar fade-in d1">
+    <!-- Пользователь, 2026-09-17: «фильтры может повыше кудато? не
+         понятно» — тулбар раньше был зажат между сигнальной панелью и
+         воронкой, было неясно, что он вообще на странице значит. Теперь
+         первое, что видно под шапкой — управление всей страницей. Вторую
+         кнопку «Выйти» (была здесь же) убрали — она уже есть в шапке. -->
+    <div class="toolbar fade-in">
       <input type="search" id="search" placeholder="Поиск: ФИО, руководитель, регион…">
       <select id="monthFilter"><option value="">Все месяцы</option></select>
       <select id="statusFilter"><option value="">Все статусы</option></select>
@@ -519,9 +520,11 @@
       </select>
       <span class="filter-count" id="filterCount"></span>
       <button class="toolbar-clear" id="clearFiltersBtn">Сбросить фильтры</button>
-      <div class="spacer"></div>
-      <button class="logout" id="logoutBtn">Выйти</button>
     </div>
+
+    <div class="stats fade-in d1" id="stats"></div>
+
+    <section class="signal-panel fade-in d1" id="tomorrowPanel"></section>
 
     <section class="fade-in d2">
       <h2>Воронка адаптации</h2>
@@ -1381,7 +1384,6 @@
     var el = document.getElementById(id);
     el.addEventListener(id === "search" ? "input" : "change", render);
   });
-  document.getElementById("logoutBtn").addEventListener("click", doLogout);
   document.getElementById("clearFiltersBtn").addEventListener("click", function () {
     document.getElementById("search").value = "";
     document.getElementById("monthFilter").value = "";
