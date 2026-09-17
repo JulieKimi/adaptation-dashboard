@@ -1,6 +1,14 @@
 <!doctype html>
 <html lang="ru">
 <head>
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem("dashboard_theme");
+    if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+  } catch (e) {}
+})();
+</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Дашборд адаптации</title>
@@ -174,6 +182,14 @@
     padding: 6px 12px; cursor: pointer;
   }
   .logout:hover { background: var(--surface-alt); }
+
+  .theme-toggle {
+    display: flex; align-items: center; justify-content: center; flex: none;
+    width: 32px; height: 32px; color: var(--text-muted);
+    background: none; border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
+  }
+  .theme-toggle:hover { background: var(--surface-alt); }
+  .theme-toggle svg { width: 16px; height: 16px; }
 
   main { max-width: 1180px; margin: 0 auto; padding: 22px 28px 64px; }
 
@@ -519,7 +535,10 @@
       <div class="sub">Феодальная Сеть Баров · живые данные из бота и Битрикс24</div>
     </div>
   </div>
-  <div class="header-right" id="headerRight"></div>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <div class="header-right" id="headerRight"></div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Переключить тему"></button>
+  </div>
 </header>
 
 <main>
@@ -1452,6 +1471,49 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
+
+  // ---- theme toggle --------------------------------------------------------
+  // Пользователь, 2026-09-17: «добавь переключатель темы» — раньше тема
+  // определялась только системной настройкой (prefers-color-scheme), без
+  // ручного управления. Явный выбор запоминается в localStorage и ставится
+  // ДО отрисовки (см. инлайн-скрипт в <head>) — без этого при жёсткой
+  // тёмной системной теме страница на долю секунды мигала бы светлой.
+  var THEME_KEY = "dashboard_theme";
+  var SUN_ICON = '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v2.4M12 19.1v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  var MOON_ICON = '<svg viewBox="0 0 24 24" fill="none"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+
+  function storedTheme() {
+    try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; }
+  }
+  function isDarkActive() {
+    var stored = storedTheme();
+    if (stored === "dark") return true;
+    if (stored === "light") return false;
+    return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }
+  function updateThemeToggleButton() {
+    var btn = document.getElementById("themeToggle");
+    if (!btn) return;
+    var dark = isDarkActive();
+    btn.innerHTML = dark ? MOON_ICON : SUN_ICON;
+    var label = dark ? "Включить светлую тему" : "Включить тёмную тему";
+    btn.setAttribute("aria-label", label);
+    btn.title = label;
+  }
+  function applyTheme(theme) {
+    if (theme === "dark" || theme === "light") {
+      document.documentElement.setAttribute("data-theme", theme);
+      try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+      try { localStorage.removeItem(THEME_KEY); } catch (e) {}
+    }
+    updateThemeToggleButton();
+  }
+  document.getElementById("themeToggle").addEventListener("click", function () {
+    applyTheme(isDarkActive() ? "light" : "dark");
+  });
+  updateThemeToggleButton();
 
   // ---- wiring ------------------------------------------------------------
   ["search", "monthFilter", "statusFilter", "sortBy"].forEach(function (id) {
