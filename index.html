@@ -335,6 +335,15 @@
      отступом 200px до края section — помещается целиком начиная
      примерно с 1524px viewport; порог 1560px даёт ~36px запаса. */
   @media (max-width: 1560px) { .legend-gutter { display: none; } }
+
+  .legend-inline {
+    display: none; flex-wrap: wrap; gap: 0.35rem 1.1rem; margin-bottom: 0.9rem;
+    font-size: 0.76rem; color: var(--text-muted);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 0.6rem 0.9rem;
+  }
+  .legend-inline-item { display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+  @media (max-width: 1560px) { .legend-inline { display: flex; } }
   .candidate-row {
     background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
     padding: 0.8rem 1.15rem; box-shadow: var(--shadow); cursor: pointer;
@@ -623,6 +632,20 @@
           <div class="legend-row"><span class="legend-dot" style="background:var(--purple)"></span>Продлён ИС</div>
           <div class="legend-row"><span class="legend-dot" style="background:var(--success)"></span>ИС пройден</div>
         </div>
+      </div>
+      <!-- Пользователь, 2026-09-17: «думаю у меня экран меньше — можешь
+           сделать для мал экранов тоже?» — плавающая легенда в боковом
+           поле принципиально требует свободного места СНАРУЖИ колонки
+           контента (~1560px+), меньше её туда физически не втиснуть без
+           наложения. Вместо этого — горизонтальная строка тех же пяти
+           пунктов в обычном потоке, показывается ровно там, где
+           плавающая скрывается (тот же брейкпоинт, взаимоисключающе). -->
+      <div class="legend-inline">
+        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--text-faint)"></span>Пребординг</span>
+        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--warning)"></span>ИС, в процессе</span>
+        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--danger)"></span>Риск / заблокирован</span>
+        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--purple)"></span>Продлён ИС</span>
+        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--success)"></span>ИС пройден</span>
       </div>
       <h2>Кандидаты</h2>
       <div class="candidate-list" id="cards"></div>
