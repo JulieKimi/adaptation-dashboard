@@ -540,6 +540,14 @@
   .modal-task-status.pending { background: var(--neutral-pill-bg); color: var(--neutral-pill-fg); }
   .modal-task-status.overdue { background: var(--danger-soft); color: var(--danger); }
   .modal-tasks-empty { font-size: 0.8rem; color: var(--text-faint); }
+
+  .modal-history { margin-top: 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--border); }
+  .modal-history-row { padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
+  .modal-history-row:last-child { border-bottom: none; }
+  .modal-history-row .h-top { display: flex; justify-content: space-between; gap: 0.6rem; }
+  .modal-history-row .h-pos { font-weight: 600; }
+  .modal-history-row .h-outcome { color: var(--text-faint); font-size: 0.68rem; white-space: nowrap; }
+  .modal-history-row .h-meta { color: var(--text-faint); font-size: 0.7rem; margin-top: 0.15rem; }
 </style>
 </head>
 <body>
@@ -658,7 +666,7 @@
       <div class="chart-card">
         <div class="chart-title">Отработали 60+ дней с даты старта оффера</div>
         <div class="stats" id="retentionStats" style="margin-bottom:0"></div>
-        <div class="funnel-note">Считается только по дате старта — увольнения бот пока не отслеживает, это не % удержания, а сколько человек дошли до контрольной точки 60 дней.</div>
+        <div class="funnel-note">Реальные дни стажа — где есть данные из листа; для остальных — расчёт по дате старта. Это не % удержания, а сколько человек дошли до контрольной точки 60 дней.</div>
       </div>
     </section>
 
@@ -942,12 +950,22 @@
   // Пользователь, 2026-09-17: остальные карточки показывали "1 просрочил"
   // без базы для сравнения — "всего в адаптации" даёт знаменатель на глаз,
   // и заодно уравновешивает сетку до нормального ряда.
+  // Пользователь, 2026-09-17: бэкфилл «✅О-т» добавил ~176 исторических
+  // людей (завершили ИС или уволились месяцы назад) — без этого фильтра
+  // «Всего в адаптации»/«Сотрудников на ИС» скакнули бы с ~24 до ~200,
+  // хотя эти карточки про ТЕКУЩИЙ операционный статус прямо сейчас, не
+  // про всех, кто когда-либо проходил адаптацию (для этого есть воронка).
+  function isCurrentlyActive(row) {
+    return !row.is_departed && row.current_step !== "is_completed";
+  }
+
   function renderStats(rows) {
-    var onIs = rows.filter(function (r) { return r.current_step === "is_tasks_created"; }).length;
-    var overdue = rows.filter(function (r) { return r.overdue_tasks_count > 0 && !r.is_probation_extended; }).length;
-    var extended = rows.filter(function (r) { return r.is_probation_extended; }).length;
+    var active = rows.filter(isCurrentlyActive);
+    var onIs = active.filter(function (r) { return r.current_step === "is_tasks_created"; }).length;
+    var overdue = active.filter(function (r) { return r.overdue_tasks_count > 0 && !r.is_probation_extended; }).length;
+    var extended = active.filter(function (r) { return r.is_probation_extended; }).length;
     var stats = [
-      [rows.length, "Всего в адаптации", "total", false],
+      [active.length, "Всего в адаптации", "total", false],
       [onIs, "Сотрудников на ИС", "is", false],
       [overdue, "Сотрудники, которые просрочили ИС", "overdue", true],
     ];
@@ -1173,9 +1191,12 @@
       // ошибка, разная у каждого) и "ИС пройден" не трогаем.
       var isPreboardingStep = PREBOARDING_ORDER.indexOf(r.current_step) !== -1;
       var badgeText = isPreboardingStep ? "Пребординг" : step[0];
-      var badges = r.current_step === "is_tasks_created"
-        ? ""
-        : '<div class="candidate-badges"><span class="pill ' + pillClass + '">' + esc(badgeText) + '</span></div>';
+      var statusPill = r.current_step === "is_tasks_created" ? "" : '<span class="pill ' + pillClass + '">' + esc(badgeText) + '</span>';
+      // Пользователь, 2026-09-17: бэкфилл «✅О-т» — отдельный бейдж «Уволен(а)»
+      // в общем списке (не отдельный раздел), рядом с обычным статусным —
+      // человек мог уволиться на любом шаге, badge не заменяет его, а дополняет.
+      var departedPill = r.is_departed ? '<span class="pill pill-neutral">Уволен(а)</span>' : "";
+      var badges = (statusPill || departedPill) ? '<div class="candidate-badges">' + statusPill + departedPill + '</div>' : "";
 
       var progress;
       if (isBlocked) {
@@ -1326,16 +1347,23 @@
     wireSignalRowClicks(el, withInfo.map(function (x) { return x.row; }));
   }
 
-  // Пользователь, 2026-09-16: «отработал 60 дней. Закрепляемость» —
-  // считаем только по start_date, честно: бот не знает про увольнения,
-  // поэтому это не % удержания (который выглядел бы заниженным для
-  // недавних стартов), а простое "сколько человек дошли до 60-го дня".
+  // Пользователь, 2026-09-16: «отработал 60 дней. Закрепляемость».
+  // Пользователь, 2026-09-17: бэкфилл «✅О-т» принёс реальные дни стажа
+  // (row.tenure_days, из колонки "Удержание"/"Работает" листа) — точнее,
+  // чем расчёт "сегодня − старт", и не завышает стаж уволившимся, живой
+  // расчёт остаётся фолбэком для кандидатов, которых бот ведёт сам.
+  function tenureDaysFor(row, today) {
+    if (row.tenure_days !== null && row.tenure_days !== undefined) return row.tenure_days;
+    return row.start_date ? daysBetweenISO(row.start_date, today) : null;
+  }
+
   function renderRetentionStats(rows) {
     var el = document.getElementById("retentionStats");
     if (!el) return;
     var today = todayISO();
     var reached60 = rows.filter(function (r) {
-      return r.start_date && daysBetweenISO(r.start_date, today) >= 60;
+      var days = tenureDaysFor(r, today);
+      return days !== null && days >= 60;
     }).length;
     el.innerHTML = '<div class="stat-card">' +
       '<span class="icon"><svg viewBox="0 0 24 24" fill="none">' + STAT_ICONS.retained + '</svg></span>' +
@@ -1422,6 +1450,29 @@
     }).join("");
   }
 
+  // Пользователь, 2026-09-17: «можно как-то в одной карточке отобразить
+  // (внутри в истории)?» — Мингалиев Давид/Владимирова Екатерина уходили
+  // и возвращались; прошлые закрытые заходы видны здесь, под текущими
+  // задачами, не как отдельные строки в общем списке.
+  function renderModalHistory(row) {
+    if (!row.history || !row.history.length) return "";
+    var rowsHtml = row.history.map(function (h) {
+      var metaParts = [];
+      if (h.start_date) metaParts.push("старт " + formatDate(h.start_date));
+      if (h.tenure_days !== null && h.tenure_days !== undefined) metaParts.push(h.tenure_days + " дн.");
+      if (h.tasks_total !== null && h.tasks_total !== undefined) {
+        metaParts.push("задач " + (h.tasks_defended || 0) + "/" + h.tasks_total);
+      }
+      if (h.manager_full_name) metaParts.push("рук. " + h.manager_full_name);
+      return '<div class="modal-history-row">' +
+        '<div class="h-top"><span class="h-pos">' + esc(h.position || row.position) + '</span>' +
+        '<span class="h-outcome">' + esc(h.outcome || "") + '</span></div>' +
+        '<div class="h-meta">' + esc(metaParts.join(" · ")) + '</div>' +
+        '</div>';
+    }).join("");
+    return '<div class="modal-history"><h4>Прошлые заходы</h4>' + rowsHtml + '</div>';
+  }
+
   function renderModalTasks(row) {
     if (!row.tasks || !row.tasks.length) {
       return '<div class="modal-tasks-empty">Задач ИС пока нет.</div>';
@@ -1455,6 +1506,12 @@
     if (row.is_probation_extended) {
       adLine += '<div class="r" style="margin-top:0.25rem;color:var(--warning)">⏳ Продлён ИС — старые просроченные задачи не в счёт</div>';
     }
+    // Пользователь, 2026-09-17: бэкфилл «✅О-т» — «Уволен(а)» в карточке,
+    // рядом реальный стаж (real tenure_days), когда он известен.
+    if (row.is_departed) {
+      var tenureText = (row.tenure_days !== null && row.tenure_days !== undefined) ? " · стаж " + row.tenure_days + " дн." : "";
+      adLine += '<div class="r" style="margin-top:0.25rem;color:var(--text-faint)">🚪 Уволен(а)' + tenureText + '</div>';
+    }
     document.getElementById("modalCard").innerHTML =
       '<div class="modal-head"><div><p class="n">' + esc(row.full_name) + '</p>' +
       '<div class="r">' + esc(row.position) + (row.object_name ? " · " + esc(row.object_name) : "") + '</div>' + adLine + '</div>' +
@@ -1463,7 +1520,7 @@
       '<button class="modal-close" id="modalCloseBtn">✕</button></div></div>' +
       '<div class="modal-body">' +
       '<div class="modal-steps"><h4>Этапы</h4><div class="step-timeline">' + renderStepTimeline(row) + '</div></div>' +
-      '<div class="modal-tasks"><h4>Задачи ИС' + (total ? " (" + total + ") — " + done + " выполнено" : "") + '</h4>' + renderModalTasks(row) + '</div>' +
+      '<div class="modal-tasks"><h4>Задачи ИС' + (total ? " (" + total + ") — " + done + " выполнено" : "") + '</h4>' + renderModalTasks(row) + renderModalHistory(row) + '</div>' +
       '</div>';
     history.replaceState(null, "", location.pathname + location.search + candidateHash(row.full_name));
     document.getElementById("modalOverlay").classList.add("open");
