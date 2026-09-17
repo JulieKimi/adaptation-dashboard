@@ -1487,6 +1487,19 @@
 
   function renderModalTasks(row) {
     if (!row.tasks || !row.tasks.length) {
+      // Пользователь, 2026-09-18: «если ИС завершён, то задач потом не
+      // видно?» — бэкфилл «✅О-т» даёт только итоговые числа из листа
+      // (tasks_total/defended), не сами задачи по отдельности (их нет в
+      // Bitrix — bitrix_user_id для таких людей не сохраняется, см.
+      // dashboard_export.py). «Задач ИС пока нет.» здесь читалось как
+      // «их не было вообще», хотя по факту были и защищены — показываем
+      // как историческую сводку, не как пустоту.
+      if (row.tasks_total > 0) {
+        return '<div class="modal-tasks-empty">Подробностей по отдельным задачам нет — ' +
+          'только итог из листа: ' + row.tasks_total + ' всего, защищено ' + row.defended +
+          (row.admitted_to_defense > row.defended ? ', к защите ' + (row.admitted_to_defense - row.defended) : '') +
+          '.</div>';
+      }
       return '<div class="modal-tasks-empty">Задач ИС пока нет.</div>';
     }
     var sorted = row.tasks.slice().sort(function (a, b) { return (a.deadline || "").localeCompare(b.deadline || ""); });
