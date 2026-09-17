@@ -37,6 +37,8 @@
     --danger: #c1392b;
     --danger-soft: #fbeae7;
     --purple: #7f77dd;
+    --status-blue: #3f6fa8;
+    --status-blue-soft: #e6eef8;
     --neutral-pill-bg: #edeae0;
     --neutral-pill-fg: #55503f;
     --shadow: 0 1px 2px rgba(33, 31, 25, 0.05), 0 12px 28px -14px rgba(33, 31, 25, 0.16);
@@ -67,6 +69,8 @@
       --danger: #e8887c;
       --danger-soft: #3a2119;
       --purple: #afa9ec;
+      --status-blue: #8fb3e0;
+      --status-blue-soft: #1c2a3a;
       --neutral-pill-bg: #2c2919;
       --neutral-pill-fg: #cdc6ac;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.55);
@@ -93,6 +97,8 @@
     --danger: #e8887c;
     --danger-soft: #3a2119;
     --purple: #afa9ec;
+    --status-blue: #8fb3e0;
+    --status-blue-soft: #1c2a3a;
     --neutral-pill-bg: #2c2919;
     --neutral-pill-fg: #cdc6ac;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.55);
@@ -366,6 +372,7 @@
   .name-block .name { font-family: var(--font-display); font-weight: 700; font-size: 0.9rem; margin: 0; text-wrap: balance; line-height: 1.25; }
   .name-block .role { font-size: 0.73rem; color: var(--text-muted); margin: 0.1rem 0 0; line-height: 1.3; }
   .name-block .manager-line { font-size: 0.72rem; font-weight: 600; color: var(--accent-strong); margin: 0.15rem 0 0; line-height: 1.3; }
+  .name-block .mentor-line { font-size: 0.72rem; color: var(--text-faint); margin: 0.1rem 0 0; line-height: 1.3; }
 
   .candidate-badges { grid-area: badges; display: flex; flex-wrap: wrap; gap: 0.3rem; }
   .pill {
@@ -377,7 +384,7 @@
   .pill-active { background: var(--accent-soft); color: var(--accent-strong); }
   .pill-blocked { background: var(--danger-soft); color: var(--danger); }
   .pill-done { background: var(--success-soft); color: var(--success); }
-  .pill-extended { background: var(--warning-soft); color: var(--warning); }
+  .pill-extended { background: var(--status-blue-soft); color: var(--status-blue); }
 
   .candidate-progress { grid-area: progress; min-width: 0; }
   .candidate-progress .n { font-family: var(--font-display); font-weight: 800; font-size: 0.82rem; }
@@ -385,7 +392,7 @@
   .candidate-progress .bar { height: 5px; border-radius: 3px; background: var(--surface-alt); margin-top: 0.32rem; overflow: hidden; }
   .candidate-progress .fill { height: 100%; border-radius: 3px; background: var(--accent); }
   .candidate-progress .fill.warn { background: var(--danger); }
-  .candidate-progress .fill.extended { background: var(--warning); }
+  .candidate-progress .fill.extended { background: var(--status-blue); }
 
   .candidate-risk { grid-area: risk; font-size: 0.7rem; color: var(--text-faint); min-width: 0; line-height: 1.4; }
   .candidate-risk .note { margin-top: 0.2rem; }
@@ -468,7 +475,7 @@
   .is-signal-pill.risk { background: var(--danger-soft); color: var(--danger); }
   .is-signal-pill.watch { background: var(--warning-soft); color: var(--warning); }
   .is-signal-pill.ok { background: var(--success-soft); color: var(--success); }
-  .is-signal-pill.extended { background: var(--warning-soft); color: var(--warning); }
+  .is-signal-pill.extended { background: var(--status-blue-soft); color: var(--status-blue); }
   .is-signal-days { text-align: right; font-family: var(--font-display); font-weight: 800; font-size: 0.8rem; white-space: nowrap; }
   .is-signal-days small { display: block; font-family: var(--font-body); font-weight: 600; font-size: 0.55rem; color: var(--text-faint); text-transform: uppercase; }
   .is-signal-track { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: var(--surface-alt); overflow: visible; position: relative; margin-top: 1px; }
@@ -634,10 +641,10 @@
       <div class="legend-gutter">
         <div class="legend-sticky">
           <div class="legend-title">Статус</div>
-          <div class="legend-row"><span class="legend-dot" style="background:var(--text-faint)"></span>Пребординг</div>
-          <div class="legend-row"><span class="legend-dot" style="background:var(--warning)"></span>ИС, в процессе</div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--warning)"></span>Пребординг</div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--success)"></span>ИС, в процессе</div>
           <div class="legend-row"><span class="legend-dot" style="background:var(--danger)"></span>Риск / заблокирован</div>
-          <div class="legend-row"><span class="legend-dot" style="background:var(--purple)"></span>Продлён ИС</div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--status-blue)"></span>Продлён ИС</div>
           <div class="legend-row"><span class="legend-dot" style="background:var(--success)"></span>ИС пройден</div>
         </div>
       </div>
@@ -649,10 +656,10 @@
            пунктов в обычном потоке, показывается ровно там, где
            плавающая скрывается (тот же брейкпоинт, взаимоисключающе). -->
       <div class="legend-inline">
-        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--text-faint)"></span>Пребординг</span>
-        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--warning)"></span>ИС, в процессе</span>
+        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--warning)"></span>Пребординг</span>
+        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--success)"></span>ИС, в процессе</span>
         <span class="legend-inline-item"><span class="legend-dot" style="background:var(--danger)"></span>Риск / заблокирован</span>
-        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--purple)"></span>Продлён ИС</span>
+        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-blue)"></span>Продлён ИС</span>
         <span class="legend-inline-item"><span class="legend-dot" style="background:var(--success)"></span>ИС пройден</span>
       </div>
       <h2>Кандидаты</h2>
@@ -896,7 +903,7 @@
       if (month && r.month_year !== month) return false;
       if (status && r.current_step !== status) return false;
       if (q) {
-        var hay = (r.full_name + " " + r.manager_full_name + " " + r.object_name + " " + r.position).toLowerCase();
+        var hay = (r.full_name + " " + r.manager_full_name + " " + r.mentor_full_name + " " + r.object_name + " " + r.position).toLowerCase();
         if (hay.indexOf(q) === -1) return false;
       }
       return true;
@@ -1112,12 +1119,16 @@
   // настоящие статусы — путало. Убрали кружок, вместо него полоса слева
   // по всей высоте карточки, цвет которой — реальная категория, та же,
   // что в плавающей легенде рядом со списком (см. .legend-gutter).
+  // Пользователь, 2026-09-17: цвета статусов — жёлтый/зелёный/красный/
+  // синий (её собственный список). «ИС пройден» она не называла отдельно
+  // — оставлен тем же зелёным, что «на ИС»: оба «без проблем», разница
+  // видна по бейджу/тексту, не по цвету.
   var CATEGORY_STRIPE = {
-    preboarding: "var(--text-faint)",
-    is: "var(--warning)",
+    preboarding: "var(--warning)",
+    is: "var(--success)",
     risk: "var(--danger)",
     blocked: "var(--danger)",
-    extended: "var(--purple)",
+    extended: "var(--status-blue)",
     done: "var(--success)",
   };
   function candidateCategory(row, stepKind) {
@@ -1177,6 +1188,7 @@
         '<div class="name-block"><p class="name">' + esc(r.full_name) + '</p>' +
         '<p class="role">' + esc(r.position) + (r.object_name ? " · " + esc(r.object_name) : "") + '</p>' +
         '<p class="manager-line">' + esc(r.manager_full_name ? "рук. " + r.manager_full_name : "руководитель не указан") + '</p>' +
+        (r.mentor_full_name ? '<p class="mentor-line">наст. ' + esc(r.mentor_full_name) + '</p>' : "") +
         '</div></div>';
 
       // Пользователь, 2026-09-17: «Задачи ИС» (is_tasks_created) —
@@ -1512,9 +1524,18 @@
       var tenureText = (row.tenure_days !== null && row.tenure_days !== undefined) ? " · стаж " + row.tenure_days + " дн." : "";
       adLine += '<div class="r" style="margin-top:0.25rem;color:var(--text-faint)">🚪 Уволен(а)' + tenureText + '</div>';
     }
+    // Пользователь, 2026-09-17: «в дашборде отображать наставника рядом с
+    // руководителем» — в карточке списка это уже так (manager-line/
+    // mentor-line), здесь та же пара строк для модалки.
+    var managerLine = '<div class="r" style="margin-top:0.2rem">' +
+      esc(row.manager_full_name ? "рук. " + row.manager_full_name : "руководитель не указан") + '</div>';
+    var mentorLine = row.mentor_full_name
+      ? '<div class="r" style="color:var(--text-faint)">наст. ' + esc(row.mentor_full_name) + '</div>'
+      : "";
     document.getElementById("modalCard").innerHTML =
       '<div class="modal-head"><div><p class="n">' + esc(row.full_name) + '</p>' +
-      '<div class="r">' + esc(row.position) + (row.object_name ? " · " + esc(row.object_name) : "") + '</div>' + adLine + '</div>' +
+      '<div class="r">' + esc(row.position) + (row.object_name ? " · " + esc(row.object_name) : "") + '</div>' +
+      managerLine + mentorLine + adLine + '</div>' +
       '<div class="modal-head-actions">' +
       '<button class="modal-copy" id="modalCopyBtn" title="Скопировать ссылку на карточку">🔗</button>' +
       '<button class="modal-close" id="modalCloseBtn">✕</button></div></div>' +
