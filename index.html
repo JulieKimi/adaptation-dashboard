@@ -312,7 +312,14 @@
      липнуть, как только заканчивается высота .legend-gutter, то есть
      секции. На узких экранах, где слева нет места, просто прячем. */
   .candidates-section { position: relative; }
-  .legend-gutter { position: absolute; top: 0; bottom: 0; left: -234px; width: 204px; pointer-events: none; }
+  /* Пользователь, 2026-09-17: «а где легенда?» — была отрисована, но
+     left:-234px требовал больше свободного поля слева (main отцентрован
+     по max-width:1180px + 28px паддинг), чем реально освобождает медиа-
+     запрос на 1560px — между 1560 и ~1592px легенду обрезало краем
+     экрана, и часто это выглядело как «её вообще нет». Сузили и
+     подвинули блок так, чтобы при текущем пороге 1560px он гарантированно
+     помещался целиком (см. расчёт в комментарии у media-запроса ниже). */
+  .legend-gutter { position: absolute; top: 0; bottom: 0; left: -200px; width: 176px; pointer-events: none; }
   .legend-sticky {
     position: sticky; top: 96px; pointer-events: auto;
     background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
@@ -324,6 +331,9 @@
   }
   .legend-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.76rem; color: var(--text-muted); padding: 0.3rem 0; }
   .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  /* main центрован до 1180px + 28px паддинг, gutter шириной 176px с
+     отступом 200px до края section — помещается целиком начиная
+     примерно с 1524px viewport; порог 1560px даёт ~36px запаса. */
   @media (max-width: 1560px) { .legend-gutter { display: none; } }
   .candidate-row {
     background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
