@@ -1216,12 +1216,14 @@
       } else if (r.tasks_total > 0) {
         var fillPct = Math.round((done / r.tasks_total) * 100);
         var fillClass = r.overdue_tasks_count > 0 ? (r.is_probation_extended ? " extended" : " warn") : "";
-        var pending = r.admitted_to_defense - r.defended;
-        var defenseLine = (r.defended > 0 || pending > 0)
-          ? '<div class="k" style="margin-top:0.3rem">защищено ' + r.defended + (pending > 0 ? " · к защите " + pending : "") + '</div>'
-          : "";
-        progress = '<div class="candidate-progress"><span class="n">' + done + '/' + r.tasks_total + '</span> <span class="k">задач ИС</span>' +
-          '<div class="bar"><div class="fill' + fillClass + '" style="width:' + fillPct + '%"></div></div>' + defenseLine + '</div>';
+        // Пользователь, 2026-09-17: «всего задач, осталось НЕ защищенных
+        // (те, что ещё не перешли в статус «Завершена»), просрочено» —
+        // три конкретных числа вместо «готово/защищено/к защите».
+        var notDefended = r.tasks_total - r.defended;
+        var metaLine = '<div class="k" style="margin-top:0.3rem">не защищено ' + notDefended +
+          (r.overdue_tasks_count > 0 ? ' · просрочено ' + r.overdue_tasks_count : '') + '</div>';
+        progress = '<div class="candidate-progress"><span class="n">' + r.tasks_total + '</span> <span class="k">задач ИС всего</span>' +
+          '<div class="bar"><div class="fill' + fillClass + '" style="width:' + fillPct + '%"></div></div>' + metaLine + '</div>';
       } else {
         // Ещё на пребординге — статус уже виден в бейдже слева, дней до
         // старта — в колонке риска справа; здесь дублировать нечего.
