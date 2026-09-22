@@ -495,6 +495,7 @@
   .is-signal-pill.extended { background: var(--danger-soft); color: var(--danger); }
   .is-signal-pill.departed { background: var(--neutral-pill-bg); color: var(--neutral-pill-fg); }
   .is-signal-pill.preboarding { background: var(--status-orange-soft); color: var(--status-orange); }
+  .is-signal-pill.done { background: var(--success-soft); color: var(--success); }
   .is-signal-days { text-align: right; font-family: var(--font-display); font-weight: 800; font-size: 0.8rem; white-space: nowrap; }
   .is-signal-days small { display: block; font-family: var(--font-body); font-weight: 600; font-size: 0.55rem; color: var(--text-faint); text-transform: uppercase; }
   .is-signal-track { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: var(--surface-alt); overflow: visible; position: relative; margin-top: 1px; }
@@ -1214,6 +1215,14 @@
         note: row.tenure_days != null ? "стаж " + row.tenure_days + " дн." : "",
       };
     }
+    // Пользователь, 2026-09-23: «ИС пройден тоже перемести туда где
+    // уволен, риск и тд, в правую сторону» — тот же переезд, что раньше
+    // был у «Пребординг»/«Уволен(а)»: с бейджа над карточкой сюда, в
+    // колонку риска. Проверяем ДО pace — иначе устаревший темп-расчёт
+    // мог бы перебить уже завершённый статус.
+    if (row.current_step === "is_completed") {
+      return { pillClass: "done", pillText: "ИС пройден", note: "" };
+    }
     var pace = isPaceInfo(row);
     if (pace) {
       // Пользователь, 2026-09-17: «рано судить»/«в темпе» — убрать
@@ -1270,13 +1279,15 @@
       // сворачивается в одно слово «Пребординг» — сама деталь по шагам
       // уже есть в верхней сигнальной панели и в карточке по клику,
       // здесь она просто занимала место. Заблокированные шаги (реальная
-      // ошибка, разная у каждого) и "ИС пройден" не трогаем.
+      // ошибка, разная у каждого) остаются тут.
       // Пользователь, 2026-09-22: «пребординг вынести туда же [где риск]»
       // — «Пребординг» больше не бейдж здесь, та же пилюля теперь в
-      // колонке риска (candidateRiskInfo). Блокировки и «ИС пройден»
-      // остаются тут — это разные по смыслу сигналы, не задел риска.
+      // колонке риска (candidateRiskInfo).
+      // Пользователь, 2026-09-23: «ИС пройден тоже перемести туда, в
+      // правую сторону» — тот же переезд.
       var isPreboardingStep = PREBOARDING_ORDER.indexOf(r.current_step) !== -1;
-      var statusPill = (r.current_step === "is_tasks_created" || isPreboardingStep)
+      var movedToRiskColumn = r.current_step === "is_tasks_created" || isPreboardingStep || r.current_step === "is_completed";
+      var statusPill = movedToRiskColumn
         ? "" : '<span class="pill ' + pillClass + '">' + esc(step[0]) + '</span>';
       // Пользователь, 2026-09-22: «Уволен(а)» тоже переехал в колонку
       // риска (candidateRiskInfo) — риск/темп ИС там больше не считается
