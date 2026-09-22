@@ -593,6 +593,11 @@
       <input type="search" id="search" placeholder="Поиск: ФИО, руководитель, регион…">
       <select id="monthFilter"><option value="">Все месяцы</option></select>
       <select id="statusFilter"><option value="">Все статусы</option></select>
+      <select id="sourceFilter">
+        <option value="">УК и Бары</option>
+        <option value="uk">Только УК</option>
+        <option value="bars">Только Бары</option>
+      </select>
       <select id="sortBy">
         <option value="overdue_desc">Сортировка: сначала просроченные</option>
         <option value="name_asc">По имени</option>
@@ -898,10 +903,12 @@
     var q = document.getElementById("search").value.trim().toLowerCase();
     var month = document.getElementById("monthFilter").value;
     var status = document.getElementById("statusFilter").value;
+    var source = document.getElementById("sourceFilter").value;
     var sortBy = document.getElementById("sortBy").value;
     var rows = allRows.filter(function (r) {
       if (month && r.month_year !== month) return false;
       if (status && r.current_step !== status) return false;
+      if (source && r.source_sheet !== source) return false;
       if (q) {
         var hay = (r.full_name + " " + r.manager_full_name + " " + r.mentor_full_name + " " + r.object_name + " " + r.position).toLowerCase();
         if (hay.indexOf(q) === -1) return false;
@@ -991,7 +998,8 @@
     var search = document.getElementById("search").value.trim();
     var month = document.getElementById("monthFilter").value;
     var status = document.getElementById("statusFilter").value;
-    var active = [search, month, status].filter(Boolean).length;
+    var source = document.getElementById("sourceFilter").value;
+    var active = [search, month, status, source].filter(Boolean).length;
     var countEl = document.getElementById("filterCount");
     var clearBtn = document.getElementById("clearFiltersBtn");
     countEl.style.display = active ? "inline-flex" : "none";
@@ -999,6 +1007,7 @@
     clearBtn.style.display = active ? "inline-flex" : "none";
     document.getElementById("monthFilter").classList.toggle("active", !!month);
     document.getElementById("statusFilter").classList.toggle("active", !!status);
+    document.getElementById("sourceFilter").classList.toggle("active", !!source);
   }
 
   // Воронка — три реальных этапа из БД адаптация-бота. Четвёртый,
@@ -1640,7 +1649,7 @@
   updateThemeToggleButton();
 
   // ---- wiring ------------------------------------------------------------
-  ["search", "monthFilter", "statusFilter", "sortBy"].forEach(function (id) {
+  ["search", "monthFilter", "statusFilter", "sourceFilter", "sortBy"].forEach(function (id) {
     var el = document.getElementById(id);
     el.addEventListener(id === "search" ? "input" : "change", render);
   });
@@ -1648,6 +1657,7 @@
     document.getElementById("search").value = "";
     document.getElementById("monthFilter").value = "";
     document.getElementById("statusFilter").value = "";
+    document.getElementById("sourceFilter").value = "";
     render();
   });
 
