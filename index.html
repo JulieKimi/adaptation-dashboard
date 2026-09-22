@@ -1263,7 +1263,10 @@
         var defenseLine = metaParts.length
           ? '<div class="k" style="margin-top:0.3rem">' + metaParts.join(" · ") + '</div>'
           : "";
-        progress = '<div class="candidate-progress"><span class="n">' + done + '/' + r.tasks_total + '</span> <span class="k">задач ИС</span>' +
+        // Пользователь, 2026-09-22: «1/8 задач ИС защищены — допиши у
+        // всех, а то не понятно» — X само по себе не говорило, что это
+        // именно «защищено», путалось с «всего».
+        progress = '<div class="candidate-progress"><span class="n">' + done + '/' + r.tasks_total + '</span> <span class="k">задач ИС защищены</span>' +
           '<div class="bar"><div class="fill' + fillClass + '" style="width:' + fillPct + '%"></div></div>' + defenseLine + '</div>';
       } else {
         // Ещё на пребординге — статус и дни до старта уже в колонке
@@ -1578,7 +1581,10 @@
   function candidateHash(name) { return "#c=" + encodeURIComponent(name); }
 
   function openCandidateModal(row) {
-    var done = row.tasks ? row.tasks.filter(isSubmittedTask).length : 0;
+    // Пользователь, 2026-09-22: «1/8 задач ИС защищены — допиши у всех» —
+    // тот же строгий счёт «защищено» (status === defended), что и на
+    // карточке списка, не более широкое «сдано в каком-то виде».
+    var done = row.tasks ? row.tasks.filter(function (t) { return t.status === "defended"; }).length : 0;
     var total = row.tasks ? row.tasks.length : 0;
     var adLine = "";
     if (row.ad_tasks_total) {
@@ -1612,7 +1618,7 @@
       '<button class="modal-close" id="modalCloseBtn">✕</button></div></div>' +
       '<div class="modal-body">' +
       '<div class="modal-steps"><h4>Этапы</h4><div class="step-timeline">' + renderStepTimeline(row) + '</div></div>' +
-      '<div class="modal-tasks"><h4>Задачи ИС' + (total ? " (" + total + ") — " + done + " выполнено" : "") + '</h4>' + renderModalTasks(row) + renderModalHistory(row) + '</div>' +
+      '<div class="modal-tasks"><h4>Задачи ИС' + (total ? " (" + total + ") — " + done + " защищено" : "") + '</h4>' + renderModalTasks(row) + renderModalHistory(row) + '</div>' +
       '</div>';
     history.replaceState(null, "", location.pathname + location.search + candidateHash(row.full_name));
     document.getElementById("modalOverlay").classList.add("open");
