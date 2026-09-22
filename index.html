@@ -476,6 +476,8 @@
   .is-signal-pill.watch { background: var(--warning-soft); color: var(--warning); }
   .is-signal-pill.ok { background: var(--success-soft); color: var(--success); }
   .is-signal-pill.extended { background: var(--status-blue-soft); color: var(--status-blue); }
+  .is-signal-pill.departed { background: var(--neutral-pill-bg); color: var(--neutral-pill-fg); }
+  .is-signal-pill.preboarding { background: var(--warning-soft); color: var(--warning); }
   .is-signal-days { text-align: right; font-family: var(--font-display); font-weight: 800; font-size: 0.8rem; white-space: nowrap; }
   .is-signal-days small { display: block; font-family: var(--font-body); font-weight: 600; font-size: 0.55rem; color: var(--text-faint); text-transform: uppercase; }
   .is-signal-track { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: var(--surface-alt); overflow: visible; position: relative; margin-top: 1px; }
@@ -543,8 +545,10 @@
     font-family: var(--font-display); font-weight: 700; font-size: 0.56rem; text-transform: uppercase;
     letter-spacing: 0.02em; border-radius: 999px; padding: 0.18rem 0.5rem; white-space: nowrap;
   }
-  .modal-task-status.done { background: var(--success-soft); color: var(--success); }
-  .modal-task-status.pending { background: var(--neutral-pill-bg); color: var(--neutral-pill-fg); }
+  .modal-task-status.defended { background: var(--success-soft); color: var(--success); }
+  .modal-task-status.ready_for_defense { background: var(--status-blue-soft); color: var(--status-blue); }
+  .modal-task-status.pending_raio_review { background: var(--warning-soft); color: var(--warning); }
+  .modal-task-status.in_progress { background: var(--neutral-pill-bg); color: var(--neutral-pill-fg); }
   .modal-task-status.overdue { background: var(--danger-soft); color: var(--danger); }
   .modal-tasks-empty { font-size: 0.8rem; color: var(--text-faint); }
 
@@ -651,6 +655,7 @@
           <div class="legend-row"><span class="legend-dot" style="background:var(--danger)"></span>Риск / заблокирован</div>
           <div class="legend-row"><span class="legend-dot" style="background:var(--status-blue)"></span>Продлён ИС</div>
           <div class="legend-row"><span class="legend-dot" style="background:var(--success)"></span>ИС пройден</div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--text-faint)"></span>Уволен(а)</div>
         </div>
       </div>
       <!-- Пользователь, 2026-09-17: «думаю у меня экран меньше — можешь
@@ -666,6 +671,7 @@
         <span class="legend-inline-item"><span class="legend-dot" style="background:var(--danger)"></span>Риск / заблокирован</span>
         <span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-blue)"></span>Продлён ИС</span>
         <span class="legend-inline-item"><span class="legend-dot" style="background:var(--success)"></span>ИС пройден</span>
+        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--text-faint)"></span>Уволен(а)</span>
       </div>
       <h2>Кандидаты</h2>
       <div class="candidate-list" id="cards"></div>
@@ -1139,8 +1145,13 @@
     blocked: "var(--danger)",
     extended: "var(--status-blue)",
     done: "var(--success)",
+    departed: "var(--text-faint)",
   };
   function candidateCategory(row, stepKind) {
+    // Пользователь, 2026-09-22: «риск уже не важно, если уволен» — та же
+    // логика, что и в колонке риска (candidateRiskInfo), теперь и в
+    // цвете полосы слева — уволенный не «в риске», просто ушёл.
+    if (row.is_departed) return "departed";
     if (stepKind === "blocked") return "blocked";
     if (stepKind === "done") return "done";
     if (!isPreboardingDone(row.current_step)) return "preboarding";
@@ -1156,6 +1167,15 @@
   // старт", что и в верхней сигнальной панели (daysPhrase), для единого
   // языка на странице.
   function candidateRiskInfo(row) {
+    // Пользователь, 2026-09-22: «риск уже не важно, если уволен» —
+    // уволенный человек не оценивается по темпу/риску ИС, просто
+    // показываем факт увольнения в той же колонке, с высшим приоритетом.
+    if (row.is_departed) {
+      return {
+        pillClass: "departed", pillText: "Уволен(а)",
+        note: row.tenure_days != null ? "стаж " + row.tenure_days + " дн." : "",
+      };
+    }
     var pace = isPaceInfo(row);
     if (pace) {
       // Пользователь, 2026-09-17: «рано судить»/«в темпе» — убрать
@@ -1170,8 +1190,11 @@
       };
     }
     if (!isPreboardingDone(row.current_step)) {
+      // Пользователь, 2026-09-22: «пребординг тоже вынести туда же» —
+      // раньше был отдельным бейджем над карточкой, теперь та же пилюля,
+      // что и риск/продление/уволен, в одной колонке.
       var days = row.start_date ? daysBetweenISO(todayISO(), row.start_date) : null;
-      return { pillClass: null, pillText: null, note: daysPhrase(days) };
+      return { pillClass: "preboarding", pillText: "Пребординг", note: daysPhrase(days) };
     }
     return null;
   }
@@ -1210,14 +1233,17 @@
       // уже есть в верхней сигнальной панели и в карточке по клику,
       // здесь она просто занимала место. Заблокированные шаги (реальная
       // ошибка, разная у каждого) и "ИС пройден" не трогаем.
+      // Пользователь, 2026-09-22: «пребординг вынести туда же [где риск]»
+      // — «Пребординг» больше не бейдж здесь, та же пилюля теперь в
+      // колонке риска (candidateRiskInfo). Блокировки и «ИС пройден»
+      // остаются тут — это разные по смыслу сигналы, не задел риска.
       var isPreboardingStep = PREBOARDING_ORDER.indexOf(r.current_step) !== -1;
-      var badgeText = isPreboardingStep ? "Пребординг" : step[0];
-      var statusPill = r.current_step === "is_tasks_created" ? "" : '<span class="pill ' + pillClass + '">' + esc(badgeText) + '</span>';
-      // Пользователь, 2026-09-17: бэкфилл «✅О-т» — отдельный бейдж «Уволен(а)»
-      // в общем списке (не отдельный раздел), рядом с обычным статусным —
-      // человек мог уволиться на любом шаге, badge не заменяет его, а дополняет.
-      var departedPill = r.is_departed ? '<span class="pill pill-neutral">Уволен(а)</span>' : "";
-      var badges = (statusPill || departedPill) ? '<div class="candidate-badges">' + statusPill + departedPill + '</div>' : "";
+      var statusPill = (r.current_step === "is_tasks_created" || isPreboardingStep)
+        ? "" : '<span class="pill ' + pillClass + '">' + esc(step[0]) + '</span>';
+      // Пользователь, 2026-09-22: «Уволен(а)» тоже переехал в колонку
+      // риска (candidateRiskInfo) — риск/темп ИС там больше не считается
+      // для уволенных, поэтому это не дублирование, а замена.
+      var badges = statusPill ? '<div class="candidate-badges">' + statusPill + '</div>' : "";
 
       var progress;
       if (isBlocked) {
@@ -1225,15 +1251,23 @@
       } else if (r.tasks_total > 0) {
         var fillPct = Math.round((done / r.tasks_total) * 100);
         var fillClass = r.overdue_tasks_count > 0 ? (r.is_probation_extended ? " extended" : " warn") : "";
-        var pending = r.admitted_to_defense - r.defended;
-        var defenseLine = (r.defended > 0 || pending > 0)
-          ? '<div class="k" style="margin-top:0.3rem">защищено ' + r.defended + (pending > 0 ? " · к защите " + pending : "") + '</div>'
+        // Пользователь, 2026-09-22: «защищено — это же и есть что X/Y
+        // защищены» — отдельная строка «защищено N» убрана, дублировала
+        // заголовок. Добавлены «готово к защите» (кнопка Ани,
+        // r.admitted_to_defense уже не включает защищённые — см. бэкенд)
+        // и «просрочено» (задача, допущенная к защите или защищённая, в
+        // просроченные не попадает — тоже на бэкенде).
+        var metaParts = [];
+        if (r.admitted_to_defense > 0) metaParts.push("готово к защите " + r.admitted_to_defense);
+        if (r.overdue_tasks_count > 0) metaParts.push("просрочено " + r.overdue_tasks_count);
+        var defenseLine = metaParts.length
+          ? '<div class="k" style="margin-top:0.3rem">' + metaParts.join(" · ") + '</div>'
           : "";
         progress = '<div class="candidate-progress"><span class="n">' + done + '/' + r.tasks_total + '</span> <span class="k">задач ИС</span>' +
           '<div class="bar"><div class="fill' + fillClass + '" style="width:' + fillPct + '%"></div></div>' + defenseLine + '</div>';
       } else {
-        // Ещё на пребординге — статус уже виден в бейдже слева, дней до
-        // старта — в колонке риска справа; здесь дублировать нечего.
+        // Ещё на пребординге — статус и дни до старта уже в колонке
+        // риска справа (candidateRiskInfo); здесь дублировать нечего.
         progress = '<div class="candidate-progress"><span class="k">задач ИС ещё нет</span></div>';
       }
 
@@ -1407,7 +1441,7 @@
     if (totalSpan <= 0) return null;
     var elapsed = Math.max(0, Math.min(totalSpan, daysBetweenISO(startIso, today)));
     var elapsedFraction = elapsed / totalSpan;
-    var doneCount = row.tasks.filter(function (t) { return t.is_done; }).length;
+    var doneCount = row.tasks.filter(isSubmittedTask).length;
     var doneFraction = row.tasks.length ? doneCount / row.tasks.length : 0;
     var status = "ok";
     if (elapsedFraction < 0.15) status = "watch";
@@ -1427,6 +1461,18 @@
   // отдельная панель isRiskPanel) теперь считается для каждой строки
   // списка кандидатов прямо здесь — см. candidateRiskInfo ниже.
   var PACE_STATUS_LABEL = { ok: "в темпе", watch: "рано судить", risk: "риск", extended: "продлён" };
+  // Пользователь, 2026-09-22: единая классификация задачи (см.
+  // dashboard_export._classify_task) — те же 5 статусов и здесь, и в
+  // подсчёте «готово к защите»/«просрочено» на карточке списка.
+  var TASK_STATUS_LABEL = {
+    defended: "Защищена", ready_for_defense: "Готова к защите",
+    pending_raio_review: "На предзащите у РАиО", overdue: "Просрочена", in_progress: "В процессе",
+  };
+  // «Сдано, в каком-то виде» — сотрудник закрыл свою часть, независимо от
+  // того, подтвердила ли Аня/Б24 уже сам факт. Используется для
+  // прогресс-бара и «M выполнено» — не только «Защищена».
+  var SUBMITTED_STATUSES = ["defended", "ready_for_defense", "pending_raio_review"];
+  function isSubmittedTask(t) { return SUBMITTED_STATUSES.indexOf(t.status) !== -1; }
 
   function wireSignalRowClicks(container, rowsInOrder) {
     var items = container.querySelectorAll("[data-name]");
@@ -1513,11 +1559,14 @@
     }
     var sorted = row.tasks.slice().sort(function (a, b) { return (a.deadline || "").localeCompare(b.deadline || ""); });
     return sorted.map(function (t) {
-      var status = t.is_done ? "done" : (t.is_overdue ? "overdue" : "pending");
-      var statusText = t.is_done ? "Готово" : (t.is_overdue ? "Просрочена" : "В процессе");
+      // Пользователь, 2026-09-22: «здесь готово — это какой статус задачи
+      // из Б24?» — один статус с бэкенда (_classify_task) вместо
+      // самодельной трактовки is_done/is_overdue на фронте, та же
+      // классификация, что и агрегаты на карточке списка.
+      var label = TASK_STATUS_LABEL[t.status] || t.status;
       return '<div class="modal-task-row"><span class="t">' + esc(t.title) + '</span>' +
         '<span class="d">' + formatDate(t.deadline) + '</span>' +
-        '<span class="modal-task-status ' + status + '">' + statusText + '</span></div>';
+        '<span class="modal-task-status ' + t.status + '">' + label + '</span></div>';
     }).join("");
   }
 
@@ -1529,7 +1578,7 @@
   function candidateHash(name) { return "#c=" + encodeURIComponent(name); }
 
   function openCandidateModal(row) {
-    var done = row.tasks ? row.tasks.filter(function (t) { return t.is_done; }).length : 0;
+    var done = row.tasks ? row.tasks.filter(isSubmittedTask).length : 0;
     var total = row.tasks ? row.tasks.length : 0;
     var adLine = "";
     if (row.ad_tasks_total) {
