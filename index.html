@@ -39,6 +39,10 @@
     --purple: #7f77dd;
     --status-blue: #3f6fa8;
     --status-blue-soft: #e6eef8;
+    --status-orange: #c76b1e;
+    --status-orange-soft: #fbead9;
+    --status-yellow: #9c8112;
+    --status-yellow-soft: #f8f0d3;
     --neutral-pill-bg: #edeae0;
     --neutral-pill-fg: #55503f;
     --shadow: 0 1px 2px rgba(33, 31, 25, 0.05), 0 12px 28px -14px rgba(33, 31, 25, 0.16);
@@ -71,6 +75,10 @@
       --purple: #afa9ec;
       --status-blue: #8fb3e0;
       --status-blue-soft: #1c2a3a;
+      --status-orange: #e8a15c;
+      --status-orange-soft: #3a2a13;
+      --status-yellow: #d8c168;
+      --status-yellow-soft: #34301a;
       --neutral-pill-bg: #2c2919;
       --neutral-pill-fg: #cdc6ac;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.55);
@@ -99,6 +107,10 @@
     --purple: #afa9ec;
     --status-blue: #8fb3e0;
     --status-blue-soft: #1c2a3a;
+    --status-orange: #e8a15c;
+    --status-orange-soft: #3a2a13;
+    --status-yellow: #d8c168;
+    --status-yellow-soft: #34301a;
     --neutral-pill-bg: #2c2919;
     --neutral-pill-fg: #cdc6ac;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.55);
@@ -361,6 +373,11 @@
   .candidate-row:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
   .candidate-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .candidate-row.is-blocked { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+  /* Пользователь, 2026-09-22: «уволенных сделать прозрачнее — весь текст
+     полностью сереньким, чтобы было видно что не актуально» — приглушаем
+     всю карточку разом (текст, пилюли, полосу прогресса), а не красим
+     каждый элемент отдельно — так гарантированно ничего не забыто. */
+  .candidate-row.is-departed-row { opacity: 0.55; }
 
   .name-block-wrap { grid-area: id; display: flex; align-items: flex-start; gap: 0.55rem; min-width: 0; }
   .avatar {
@@ -384,15 +401,15 @@
   .pill-active { background: var(--accent-soft); color: var(--accent-strong); }
   .pill-blocked { background: var(--danger-soft); color: var(--danger); }
   .pill-done { background: var(--success-soft); color: var(--success); }
-  .pill-extended { background: var(--status-blue-soft); color: var(--status-blue); }
+  .pill-extended { background: var(--danger-soft); color: var(--danger); }
 
   .candidate-progress { grid-area: progress; min-width: 0; }
   .candidate-progress .n { font-family: var(--font-display); font-weight: 800; font-size: 0.82rem; }
   .candidate-progress .k { font-size: 0.62rem; color: var(--text-faint); }
   .candidate-progress .bar { height: 5px; border-radius: 3px; background: var(--surface-alt); margin-top: 0.32rem; overflow: hidden; }
   .candidate-progress .fill { height: 100%; border-radius: 3px; background: var(--accent); }
-  .candidate-progress .fill.warn { background: var(--danger); }
-  .candidate-progress .fill.extended { background: var(--status-blue); }
+  .candidate-progress .fill.warn { background: var(--status-yellow); }
+  .candidate-progress .fill.extended { background: var(--danger); }
 
   .candidate-risk { grid-area: risk; font-size: 0.7rem; color: var(--text-faint); min-width: 0; line-height: 1.4; }
   .candidate-risk .note { margin-top: 0.2rem; }
@@ -472,12 +489,12 @@
     font-family: var(--font-display); font-weight: 700; font-size: 0.58rem; text-transform: uppercase;
     letter-spacing: 0.02em; border-radius: 999px; padding: 0.18rem 0.5rem; white-space: nowrap; justify-self: end;
   }
-  .is-signal-pill.risk { background: var(--danger-soft); color: var(--danger); }
+  .is-signal-pill.risk { background: var(--status-yellow-soft); color: var(--status-yellow); }
   .is-signal-pill.watch { background: var(--warning-soft); color: var(--warning); }
   .is-signal-pill.ok { background: var(--success-soft); color: var(--success); }
-  .is-signal-pill.extended { background: var(--status-blue-soft); color: var(--status-blue); }
+  .is-signal-pill.extended { background: var(--danger-soft); color: var(--danger); }
   .is-signal-pill.departed { background: var(--neutral-pill-bg); color: var(--neutral-pill-fg); }
-  .is-signal-pill.preboarding { background: var(--warning-soft); color: var(--warning); }
+  .is-signal-pill.preboarding { background: var(--status-orange-soft); color: var(--status-orange); }
   .is-signal-days { text-align: right; font-family: var(--font-display); font-weight: 800; font-size: 0.8rem; white-space: nowrap; }
   .is-signal-days small { display: block; font-family: var(--font-body); font-weight: 600; font-size: 0.55rem; color: var(--text-faint); text-transform: uppercase; }
   .is-signal-track { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: var(--surface-alt); overflow: visible; position: relative; margin-top: 1px; }
@@ -650,10 +667,10 @@
       <div class="legend-gutter">
         <div class="legend-sticky">
           <div class="legend-title">Статус</div>
-          <div class="legend-row"><span class="legend-dot" style="background:var(--warning)"></span>Пребординг</div>
-          <div class="legend-row"><span class="legend-dot" style="background:var(--success)"></span>ИС, в процессе</div>
-          <div class="legend-row"><span class="legend-dot" style="background:var(--danger)"></span>Риск / заблокирован</div>
-          <div class="legend-row"><span class="legend-dot" style="background:var(--status-blue)"></span>Продлён ИС</div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--status-orange)"></span>Пребординг</div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--status-blue)"></span>ИС, в процессе</div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--status-yellow)"></span>Риск / заблокирован</div>
+          <div class="legend-row"><span class="legend-dot" style="background:var(--danger)"></span>Продлён ИС</div>
           <div class="legend-row"><span class="legend-dot" style="background:var(--success)"></span>ИС пройден</div>
           <div class="legend-row"><span class="legend-dot" style="background:var(--text-faint)"></span>Уволен(а)</div>
         </div>
@@ -666,10 +683,10 @@
            пунктов в обычном потоке, показывается ровно там, где
            плавающая скрывается (тот же брейкпоинт, взаимоисключающе). -->
       <div class="legend-inline">
-        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--warning)"></span>Пребординг</span>
-        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--success)"></span>ИС, в процессе</span>
-        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--danger)"></span>Риск / заблокирован</span>
-        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-blue)"></span>Продлён ИС</span>
+        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-orange)"></span>Пребординг</span>
+        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-blue)"></span>ИС, в процессе</span>
+        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-yellow)"></span>Риск / заблокирован</span>
+        <span class="legend-inline-item"><span class="legend-dot" style="background:var(--danger)"></span>Продлён ИС</span>
         <span class="legend-inline-item"><span class="legend-dot" style="background:var(--success)"></span>ИС пройден</span>
         <span class="legend-inline-item"><span class="legend-dot" style="background:var(--text-faint)"></span>Уволен(а)</span>
       </div>
@@ -927,8 +944,24 @@
       start_desc: function (a, b) { return (b.start_date || "").localeCompare(a.start_date || ""); },
       remaining_desc: function (a, b) { return b.tasks_remaining - a.tasks_remaining; },
     };
-    rows.sort(sorters[sortBy] || sorters.overdue_desc);
+    var sorter = sorters[sortBy] || sorters.overdue_desc;
+    // Пользователь, 2026-09-22: «уволенных смещать ниже тех, кто на
+    // пребординге и ИС» + «ИС пройден тоже туда же» — уволенные и
+    // завершившие ИС архивны, не нуждаются в ежедневном внимании, поэтому
+    // всегда идут отдельной группой ниже, каким бы ни был выбранный
+    // порядок внутри каждой группы. Риск/продление остаются в верхней
+    // группе — по ним ещё нужно действовать, в архив их не прячем.
+    rows.sort(function (a, b) {
+      var archivedA = isArchivedRow(a) ? 1 : 0;
+      var archivedB = isArchivedRow(b) ? 1 : 0;
+      if (archivedA !== archivedB) return archivedA - archivedB;
+      return sorter(a, b);
+    });
     return rows;
+  }
+
+  function isArchivedRow(row) {
+    return row.is_departed || row.current_step === "is_completed";
   }
 
   function render() {
@@ -1138,12 +1171,17 @@
   // синий (её собственный список). «ИС пройден» она не называла отдельно
   // — оставлен тем же зелёным, что «на ИС»: оба «без проблем», разница
   // видна по бейджу/тексту, не по цвету.
+  // Пользователь, 2026-09-22: «Пребординг — оранжевый, ИС в процессе —
+  // синий, Риск — жёлтый, Продлён ИС — красный (не яркий), ИС пройден —
+  // зелёный, Уволен — серый» — «заблокирован» отдельного цвета не
+  // получил, делит жёлтый с «риск» (легенда их и так показывает одной
+  // строкой «Риск / заблокирован»).
   var CATEGORY_STRIPE = {
-    preboarding: "var(--warning)",
-    is: "var(--success)",
-    risk: "var(--danger)",
-    blocked: "var(--danger)",
-    extended: "var(--status-blue)",
+    preboarding: "var(--status-orange)",
+    is: "var(--status-blue)",
+    risk: "var(--status-yellow)",
+    blocked: "var(--status-yellow)",
+    extended: "var(--danger)",
     done: "var(--success)",
     departed: "var(--text-faint)",
   };
@@ -1291,7 +1329,7 @@
         evalLine +
         '</div>';
 
-      return '<article class="candidate-row' + (isBlocked ? ' is-blocked' : '') + '" data-idx="' + rows.indexOf(r) +
+      return '<article class="candidate-row' + (isBlocked ? ' is-blocked' : '') + (r.is_departed ? ' is-departed-row' : '') + '" data-idx="' + rows.indexOf(r) +
         '" style="border-left:5px solid ' + CATEGORY_STRIPE[category] + '" role="button" tabindex="0" aria-label="Открыть карточку: ' + esc(r.full_name) + '">' +
         idBlock + badges + progress + riskHtml + meta + '</article>';
     }).join("");
