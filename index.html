@@ -595,6 +595,20 @@
   .modal-task-status.overdue { background: var(--danger-soft); color: var(--danger); }
   .modal-tasks-empty { font-size: 0.8rem; color: var(--text-faint); }
 
+  /* Пользователь, 2026-09-24: «кружки не кликабельны — не открываются
+     результаты оценок по клику» — разбивка по критериям в карточке,
+     под «Этапы» (кружок сам по себе не отдельно кликабелен, открывает
+     ту же карточку, что и вся строка списка). */
+  .modal-evals { margin-top: 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--border); }
+  .modal-eval-group { margin-top: 0.85rem; }
+  .modal-eval-group:first-child { margin-top: 0; }
+  .modal-eval-head { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-display); font-weight: 700; font-size: 0.78rem; margin-bottom: 0.3rem; }
+  .modal-eval-avg { font-size: 0.66rem; font-weight: 700; color: var(--accent-strong); background: var(--accent-soft); padding: 0.06rem 0.45rem; border-radius: 999px; }
+  .modal-eval-row { display: flex; justify-content: space-between; gap: 0.6rem; font-size: 0.78rem; padding: 0.32rem 0; border-bottom: 1px solid var(--border); }
+  .modal-eval-row:last-child { border-bottom: none; }
+  .modal-eval-row .t { color: var(--text-muted); }
+  .modal-eval-row .s { font-weight: 700; flex: none; }
+
   .modal-history { margin-top: 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--border); }
   .modal-history-row { padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
   .modal-history-row:last-child { border-bottom: none; }
@@ -1344,10 +1358,11 @@
         // и «просрочено» (задача, допущенная к защите или защищённая, в
         // просроченные не попадает — тоже на бэкенде).
         var metaParts = [];
+        // Пользователь, 2026-09-24: просрочка — первой (тревожнее, чем
+        // готовность к защите), слово и цифра целиком красным
+        // приглушённым жирным, чтобы не терялась в общей серой строке.
+        if (r.overdue_tasks_count > 0) metaParts.push('<b class="overdue-count">просрочено ' + r.overdue_tasks_count + '</b>');
         if (r.admitted_to_defense > 0) metaParts.push("готово к защите " + r.admitted_to_defense);
-        // Пользователь, 2026-09-24: цифра просрочки — красным приглушённым
-        // жирным, чтобы не терялась в общей серой строке.
-        if (r.overdue_tasks_count > 0) metaParts.push("просрочено <b class=\"overdue-count\">" + r.overdue_tasks_count + "</b>");
         var defenseLine = metaParts.length
           ? '<div class="k" style="margin-top:0.3rem">' + metaParts.join(" · ") + '</div>'
           : "";
@@ -1674,6 +1689,30 @@
     }).join("");
   }
 
+  // Пользователь, 2026-09-24: разбивка оценок по критериям для карточки
+  // по клику — тот же порядок, что и у кружков в строке списка.
+  var EVALUATOR_LABEL = { alena: "Алёна", manager: "Руководитель", anya: "Аня" };
+  function renderModalEvaluations(row) {
+    if (!row.evaluations || !row.evaluations.length) {
+      return '<div class="modal-tasks-empty">Оценок пока нет.</div>';
+    }
+    var byEvaluator = {};
+    row.evaluations.forEach(function (e) {
+      (byEvaluator[e.evaluator] = byEvaluator[e.evaluator] || []).push(e);
+    });
+    return Object.keys(EVALUATOR_LABEL).filter(function (key) { return byEvaluator[key]; }).map(function (key) {
+      var items = byEvaluator[key];
+      var scored = items.filter(function (e) { return e.score != null; });
+      var avg = scored.length ? (scored.reduce(function (s, e) { return s + e.score; }, 0) / scored.length).toFixed(1) : null;
+      var rows = items.map(function (e) {
+        return '<div class="modal-eval-row"><span class="t">' + esc(e.criterion) + '</span>' +
+          '<span class="s">' + (e.score != null ? e.score : "—") + '</span></div>';
+      }).join("");
+      return '<div class="modal-eval-group"><div class="modal-eval-head">' + EVALUATOR_LABEL[key] +
+        (avg ? '<span class="modal-eval-avg">' + avg + '</span>' : '') + '</div>' + rows + '</div>';
+    }).join("");
+  }
+
   // Пользователь, 2026-09-17: «нет способа быстро среагировать» на
   // сигнальные панели — самое дешёвое улучшение без бэкенда: ссылка на
   // конкретную карточку, чтобы её можно было переслать руководителю в
@@ -1718,7 +1757,8 @@
       '<button class="modal-copy" id="modalCopyBtn" title="Скопировать ссылку на карточку">🔗</button>' +
       '<button class="modal-close" id="modalCloseBtn">✕</button></div></div>' +
       '<div class="modal-body">' +
-      '<div class="modal-steps"><h4>Этапы</h4><div class="step-timeline">' + renderStepTimeline(row) + '</div></div>' +
+      '<div class="modal-steps"><h4>Этапы</h4><div class="step-timeline">' + renderStepTimeline(row) + '</div>' +
+      '<div class="modal-evals"><h4>Оценки</h4>' + renderModalEvaluations(row) + '</div></div>' +
       '<div class="modal-tasks"><h4>Задачи ИС' + (total ? " (" + total + ") — " + done + " защищено" : "") + '</h4>' + renderModalTasks(row) + renderModalHistory(row) + '</div>' +
       '</div>';
     history.replaceState(null, "", location.pathname + location.search + candidateHash(row.full_name));
