@@ -366,8 +366,8 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
     padding: 0.8rem 1.15rem; box-shadow: var(--shadow); cursor: pointer;
     display: grid; align-items: center; gap: 0.9rem 1.1rem;
-    grid-template-columns: minmax(190px, 1.5fr) auto minmax(120px, 0.9fr) minmax(150px, 1.1fr) minmax(140px, 1fr);
-    grid-template-areas: "id badges progress risk meta";
+    grid-template-columns: minmax(190px, 1.5fr) auto minmax(120px, 0.9fr) 122px minmax(140px, 1fr);
+    grid-template-areas: "id badges progress evals meta";
     transition: box-shadow 0.15s ease, transform 0.15s ease;
   }
   .candidate-row:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
@@ -380,6 +380,10 @@
   .candidate-row.is-departed-row { opacity: 0.55; }
 
   .name-block-wrap { grid-area: id; display: flex; align-items: flex-start; gap: 0.55rem; min-width: 0; }
+  /* Пользователь, 2026-09-24: пилюля риска (Продлён/Риск/Пребординг/ИС
+     пройден/Уволен) переехала со своей колонки к имени — колонка риска
+     теперь занята кружками оценок, а не пустует рядом с чипом. */
+  .name-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
   .avatar {
     width: 30px; height: 30px; border-radius: 50%; flex: none; margin-top: 0.05rem;
     display: flex; align-items: center; justify-content: center;
@@ -411,21 +415,42 @@
   .candidate-progress .fill.warn { background: var(--status-yellow); }
   .candidate-progress .fill.extended { background: var(--danger); }
 
-  .candidate-risk { grid-area: risk; font-size: 0.7rem; color: var(--text-faint); min-width: 0; line-height: 1.4; }
-  .candidate-risk .note { margin-top: 0.2rem; }
+  /* Пользователь, 2026-09-24: 3 кружка оценок (Алёна/руководитель/Аня) —
+     занимают место бывшей колонки риска (см. .name-row выше). Кружок
+     "—" (pending) — критерий ещё не отвечен, не 0. */
+  .candidate-evals { grid-area: evals; display: flex; gap: 0.4rem; }
+  .eval-circle { display: flex; flex-direction: column; align-items: center; gap: 0.16rem; }
+  .eval-circle .ring {
+    width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 800; font-size: 0.66rem; border: 2px solid transparent;
+  }
+  .eval-circle .who { font-size: 0.54rem; color: var(--text-faint); font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
+  .eval-circle .ring.good { background: var(--success-soft); color: var(--success); border-color: color-mix(in srgb, var(--success) 35%, transparent); }
+  .eval-circle .ring.mid { background: var(--status-yellow-soft); color: var(--status-yellow); border-color: color-mix(in srgb, var(--status-yellow) 35%, transparent); }
+  .eval-circle .ring.low { background: var(--danger-soft); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); }
+  .eval-circle .ring.pending { background: var(--neutral-pill-bg); color: var(--text-faint); font-size: 0.6rem; }
 
-  .candidate-meta { grid-area: meta; font-size: 0.68rem; color: var(--text-faint); text-align: right; line-height: 1.55; }
+  .candidate-meta { grid-area: meta; font-size: 0.68rem; color: var(--text-faint); text-align: right; line-height: 1.6; }
   .candidate-meta b { color: var(--text-muted); font-weight: 600; }
+  /* Пользователь, 2026-09-24: «7 дней до ...» переехало сюда, под дату —
+     дата уже не дублируется рядом с пилюлей риска в отдельной колонке. */
+  .candidate-meta .relative { display: block; margin-top: 0.1rem; font-weight: 700; font-family: var(--font-display); }
+  .candidate-meta .relative.ok { color: var(--text-faint); font-weight: 600; }
+  .candidate-meta .relative.soon { color: var(--warning); }
+  .candidate-meta .relative.overdue { color: var(--danger); }
+  /* Пользователь, 2026-09-24: цифра просроченных задач — красным
+     приглушённым и жирным, чтобы бросалась в глаза в строке "к.к.". */
+  .overdue-count { color: color-mix(in srgb, var(--danger) 70%, var(--text-muted)); font-weight: 700; }
 
   @media (max-width: 980px) {
     .candidate-row {
       grid-template-columns: 1fr 1fr;
-      grid-template-areas: "id id" "badges badges" "progress risk" "meta meta";
+      grid-template-areas: "id id" "badges badges" "progress evals" "meta meta";
     }
     .candidate-meta { text-align: left; }
   }
   @media (max-width: 560px) {
-    .candidate-row { grid-template-columns: 1fr; grid-template-areas: "id" "badges" "progress" "risk" "meta"; }
+    .candidate-row { grid-template-columns: 1fr; grid-template-areas: "id" "badges" "progress" "evals" "meta"; }
   }
 
   .empty, .loading { padding: 48px 24px; text-align: center; color: var(--text-muted); font-size: 14px; }
@@ -1228,20 +1253,23 @@
       // Пользователь, 2026-09-17: «рано судить»/«в темпе» — убрать
       // совсем (пустая колонка, дни до конца остаются) — для этих двух
       // состояний пилюля не несёт решения, только риск и продление
-      // требуют реакции.
+      // требуют реакции. Пользователь, 2026-09-24: дни до конца ИС
+      // переехали в колонку с датами (см. renderCards) — здесь больше
+      // не дублируем их в note.
       var isAlarm = pace.status === "risk" || pace.status === "extended";
       return {
         pillClass: isAlarm ? pace.status : null,
         pillText: isAlarm ? PACE_STATUS_LABEL[pace.status] : null,
-        note: pace.daysLeft + " дн. · до " + formatDate(row.is_end_date),
+        note: "",
       };
     }
     if (!isPreboardingDone(row.current_step)) {
       // Пользователь, 2026-09-22: «пребординг тоже вынести туда же» —
       // раньше был отдельным бейджем над карточкой, теперь та же пилюля,
-      // что и риск/продление/уволен, в одной колонке.
-      var days = row.start_date ? daysBetweenISO(todayISO(), row.start_date) : null;
-      return { pillClass: "preboarding", pillText: "Пребординг", note: daysPhrase(days) };
+      // что и риск/продление/уволен, в одной колонке. Пользователь,
+      // 2026-09-24: «через N дней» переехало под «Старт ИС» в колонку
+      // дат — здесь тоже больше не дублируем.
+      return { pillClass: "preboarding", pillText: "Пребординг", note: "" };
     }
     return null;
   }
@@ -1263,8 +1291,17 @@
       // левый блок, выделено акцентным цветом (та же личность, что и
       // должность — логично держать рядом).
       var category = candidateCategory(r, step[1]);
+      // Пользователь, 2026-09-24: пилюля риска (Продлён/Риск/Пребординг/
+      // ИС пройден/Уволен) переехала к имени — освобождает колонку риска
+      // под кружки оценок (см. .candidate-evals) вместо того, чтобы
+      // висеть рядом с ними ни туда ни сюда.
+      var risk = candidateRiskInfo(r);
+      var riskChip = risk && risk.pillText
+        ? '<span class="is-signal-pill ' + risk.pillClass + '">' + esc(risk.pillText) + '</span>' +
+          (risk.note ? '<span class="role" style="margin:0">' + esc(risk.note) + '</span>' : "")
+        : "";
       var idBlock = '<div class="name-block-wrap">' +
-        '<div class="name-block"><p class="name">' + esc(r.full_name) + '</p>' +
+        '<div class="name-block"><div class="name-row"><p class="name">' + esc(r.full_name) + '</p>' + riskChip + '</div>' +
         '<p class="role">' + esc(r.position) + (r.object_name ? " · " + esc(r.object_name) : "") + '</p>' +
         '<p class="manager-line">' + esc(r.manager_full_name ? "рук. " + r.manager_full_name : "руководитель не указан") + '</p>' +
         (r.mentor_full_name ? '<p class="mentor-line">наст. ' + esc(r.mentor_full_name) + '</p>' : "") +
@@ -1308,7 +1345,9 @@
         // просроченные не попадает — тоже на бэкенде).
         var metaParts = [];
         if (r.admitted_to_defense > 0) metaParts.push("готово к защите " + r.admitted_to_defense);
-        if (r.overdue_tasks_count > 0) metaParts.push("просрочено " + r.overdue_tasks_count);
+        // Пользователь, 2026-09-24: цифра просрочки — красным приглушённым
+        // жирным, чтобы не терялась в общей серой строке.
+        if (r.overdue_tasks_count > 0) metaParts.push("просрочено <b class=\"overdue-count\">" + r.overdue_tasks_count + "</b>");
         var defenseLine = metaParts.length
           ? '<div class="k" style="margin-top:0.3rem">' + metaParts.join(" · ") + '</div>'
           : "";
@@ -1323,26 +1362,56 @@
         progress = '<div class="candidate-progress"><span class="k">задач ИС ещё нет</span></div>';
       }
 
-      var risk = candidateRiskInfo(r);
-      var riskHtml = '<div class="candidate-risk">';
-      if (risk) {
-        riskHtml += (risk.pillText ? '<span class="is-signal-pill ' + risk.pillClass + '">' + esc(risk.pillText) + '</span>' : "") +
-          '<div class="note">' + esc(risk.note) + '</div>';
-      } else {
-        riskHtml += '<div class="note">—</div>';
+      // Пользователь, 2026-09-24: 3 кружка оценок (Алёна/руководитель/
+      // Аня) — среднее из уже отвеченных критериев, "—" = опрос ещё не
+      // начат/не отвечен, не 0. Занимают бывшую колонку риска.
+      var evalsHtml = '<div class="candidate-evals">' +
+        [["Ал", r.eval_alena_avg], ["Рук", r.eval_manager_avg], ["Аня", r.eval_anya_avg]].map(function (pair) {
+          var who = pair[0], avg = pair[1];
+          var ring = avg == null
+            ? '<div class="ring pending">—</div>'
+            : '<div class="ring ' + (avg >= 4 ? "good" : avg >= 3 ? "mid" : "low") + '">' + avg.toFixed(1) + '</div>';
+          return '<div class="eval-circle">' + ring + '<div class="who">' + who + '</div></div>';
+        }).join("") +
+        '</div>';
+
+      // Пользователь, 2026-09-24: «7 дней до...» переехало под дату,
+      // словами вместо повторной даты — «осталось N дней»/«просрочено
+      // на N дней», ≤3 дней — оранжевым, просрочка — красным. Только для
+      // тех, кто реально на ИС-треке (не уволен, не завершил).
+      var endRelative = "", endCls = "ok";
+      if (!r.is_departed && r.current_step !== "is_completed") {
+        var pace = isPaceInfo(r);
+        if (pace) {
+          if (pace.daysLeft < 0) {
+            endRelative = "просрочено на " + Math.abs(pace.daysLeft) + " " + ruDays(pace.daysLeft);
+            endCls = "overdue";
+          } else {
+            endRelative = "осталось " + pace.daysLeft + " " + ruDays(pace.daysLeft);
+            endCls = pace.daysLeft <= 3 ? "soon" : "ok";
+          }
+        }
       }
-      riskHtml += '</div>';
+      // То же самое для старта — «через N дней»/«N дней назад» под
+      // «Старт ИС», пока человек ещё на пребординге.
+      var startRelative = "";
+      if (!r.is_departed && !isPreboardingDone(r.current_step)) {
+        var startDays = r.start_date ? daysBetweenISO(todayISO(), r.start_date) : null;
+        startRelative = daysPhraseShort(startDays);
+      }
 
       var evalLine = r.evaluation_score ? '<div>Оценка рук.: <b>' + esc(r.evaluation_score) + '</b></div>' : "";
       var meta = '<div class="candidate-meta">' +
-        '<div>Старт ИС: <b>' + formatDate(r.start_date) + '</b></div>' +
-        '<div>Завершение ИС: <b>' + formatDate(r.is_end_date) + '</b></div>' +
+        '<div>Старт ИС: <b>' + formatDate(r.start_date) + '</b>' +
+        (startRelative ? '<span class="relative ok">' + esc(startRelative) + '</span>' : "") + '</div>' +
+        '<div>Завершение ИС: <b>' + formatDate(r.is_end_date) + '</b>' +
+        (endRelative ? '<span class="relative ' + endCls + '">' + esc(endRelative) + '</span>' : "") + '</div>' +
         evalLine +
         '</div>';
 
       return '<article class="candidate-row' + (isBlocked ? ' is-blocked' : '') + (r.is_departed ? ' is-departed-row' : '') + '" data-idx="' + rows.indexOf(r) +
         '" style="border-left:5px solid ' + CATEGORY_STRIPE[category] + '" role="button" tabindex="0" aria-label="Открыть карточку: ' + esc(r.full_name) + '">' +
-        idBlock + badges + progress + riskHtml + meta + '</article>';
+        idBlock + badges + progress + evalsHtml + meta + '</article>';
     }).join("");
 
     wrap.querySelectorAll(".candidate-row").forEach(function (rowEl) {
@@ -1373,6 +1442,15 @@
     if (n10 === 1) return "день";
     if (n10 > 1 && n10 < 5) return "дня";
     return "дней";
+  }
+  // Пользователь, 2026-09-24: та же логика, что daysPhrase, но без слова
+  // "старт" — используется рядом с меткой "Старт ИС:", повторять его там
+  // избыточно (см. .candidate-meta .relative).
+  function daysPhraseShort(days) {
+    if (days === null) return "";
+    if (days === 0) return "сегодня";
+    if (days > 0) return "через " + days + " " + ruDays(days);
+    return Math.abs(days) + " " + ruDays(days) + " назад";
   }
   function daysPhrase(days) {
     // Пользователь, 2026-09-17: «непонятно что такое ждёт старт через 1
