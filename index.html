@@ -344,6 +344,30 @@
   .list-row .n { font-family: var(--font-display); font-weight: 700; font-size: 0.86rem; }
   .list-row .r { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem; }
   .list-row .x { font-size: 0.72rem; color: var(--text-faint); text-align: right; overflow-wrap: anywhere; }
+  .stat-card[data-list] { transition: box-shadow 0.15s ease, transform 0.15s ease; }
+  .stat-card[data-list]:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+  .stat-card[data-list]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .stat-card .sub { font-size: 0.68rem; color: var(--text-faint); margin-top: 0.2rem; line-height: 1.35; }
+  .stat-card .value .unit { font-size: 0.7em; font-weight: 700; color: var(--text-muted); margin-left: 0.15rem; }
+
+  /* Пользователь, 2026-09-24: «План недели — кто завершает ИС в ближайшие 7
+     дней, оперативный экран для Ани». */
+  .week-row {
+    display: grid; grid-template-columns: minmax(0, 1.5fr) 9rem minmax(0, 1.2fr) 4.6rem;
+    align-items: center; gap: 0.8rem; padding: 0.6rem 0.3rem; border-bottom: 1px solid var(--border); cursor: pointer;
+  }
+  .week-row:last-child { border-bottom: none; }
+  .week-row:hover { background: var(--surface-alt); }
+  .week-row .n { font-family: var(--font-display); font-weight: 700; font-size: 0.86rem; }
+  .week-row .r { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem; }
+  .week-row .when { font-size: 0.78rem; font-weight: 600; }
+  .week-row .when small { display: block; font-weight: 700; font-family: var(--font-display); font-size: 0.68rem; color: var(--text-faint); }
+  .week-row .when small.soon { color: var(--warning); }
+  .week-row .when small.overdue { color: var(--danger); }
+  .week-row .prog { font-size: 0.74rem; color: var(--text-muted); }
+  .week-row .prog b { color: var(--text); }
+  @media (max-width: 720px) { .week-row { grid-template-columns: 1fr auto; } .week-row .prog { grid-column: 1 / -1; } }
+  .week-more { font-size: 0.78rem; margin-top: 0.7rem; color: var(--accent-strong); font-weight: 600; cursor: pointer; }
   .list-empty { padding: 1.2rem 1.4rem; font-size: 0.85rem; color: var(--text-faint); }
   .chart-legend { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; margin-top: 0.6rem; font-size: 0.72rem; color: var(--text-muted); }
   .bar-mark { transition: filter 0.12s ease; }
@@ -791,6 +815,20 @@
 
     <div id="viewInternal" hidden>
     <section class="fade-in d2">
+      <h2>План недели</h2>
+      <div class="chart-card">
+        <div class="chart-title">Кто завершает ИС в ближайшие 7 дней <small id="weekPlanRange"></small></div>
+        <div id="weekPlan"></div>
+      </div>
+    </section>
+
+    <section class="fade-in d2">
+      <h2>Скорость процесса</h2>
+      <div class="stats" id="speedStats"></div>
+      <div class="chart-note" style="margin: -0.4rem 0 1.4rem">Считается с учётом фильтров сверху · нажми на плитку — список людей.</div>
+    </section>
+
+    <section class="fade-in d2">
       <h2>Метрики отдела адаптации</h2>
       <div class="charts">
         <div class="chart-card">
@@ -1101,6 +1139,8 @@
     renderSuccessRateChart(rows);
     renderCostPerHireChart(rows);
     renderPlanFactChart(rows);
+    renderSpeedStats(rows);
+    renderWeekPlan(allRows);
     // Пользователь, 2026-09-24: «по умолчанию не показывались уволенные и
     // завершившие ИС» — только для списка карточек: воронка/графики выше
     // намеренно считают по ВСЕМ (включая ушедших) — это их смысл
@@ -1147,19 +1187,23 @@
 
   function renderStats(rows) {
     var active = rows.filter(isCurrentlyActive);
-    var onIs = active.filter(function (r) { return r.current_step === "is_tasks_created"; }).length;
-    var overdue = active.filter(function (r) { return r.overdue_tasks_count > 0 && !r.is_probation_extended; }).length;
-    var extended = active.filter(function (r) { return r.is_probation_extended; }).length;
+    var onIsRows = active.filter(function (r) { return r.current_step === "is_tasks_created"; });
+    var overdueRows = active.filter(function (r) { return r.overdue_tasks_count > 0 && !r.is_probation_extended; });
+    var extendedRows = active.filter(function (r) { return r.is_probation_extended; });
+    // Пользователь, 2026-09-24: плитки кликабельны — «как столбцы
+    // графиков», открывают список людей, вошедших в цифру.
     var stats = [
-      [active.length, "Всего в адаптации", "total", false],
-      [onIs, "Сотрудников на ИС", "is", false],
-      [overdue, "Сотрудники, которые просрочили задачи ИС", "overdue", true],
+      [active.length, "Всего в адаптации", "total", false, active, null],
+      [onIsRows.length, "Сотрудников на ИС", "is", false, onIsRows, null],
+      [overdueRows.length, "Сотрудники, которые просрочили задачи ИС", "overdue", true, overdueRows,
+        function (r) { return "просрочено задач: " + r.overdue_tasks_count; }],
     ];
-    if (extended > 0) {
-      stats.push([extended, "Продлён срок ИС", "extended", false]);
+    if (extendedRows.length > 0) {
+      stats.push([extendedRows.length, "Продлён срок ИС", "extended", false, extendedRows,
+        function (r) { return r.extended_until ? "продлён до " + formatDate(r.extended_until) : "продлён"; }]);
     }
     document.getElementById("stats").innerHTML = stats.map(function (s) {
-      return '<div class="stat-card' + (s[3] ? " warn" : "") + '">' +
+      return '<div class="stat-card' + (s[3] ? " warn" : "") + '" role="button" tabindex="0" data-list="' + registerList(s[1], s[4], s[5]) + '">' +
         '<span class="icon"><svg viewBox="0 0 24 24" fill="none">' + STAT_ICONS[s[2]] + '</svg></span>' +
         '<span><div class="label">' + esc(s[1]) + '</div><div class="value">' + s[0] + '</div></span>' +
         '</div>';
@@ -1232,9 +1276,9 @@
   // пересобирается на каждый render(), строки — те же объекты, что в allRows.
   var chartLists = {};
   var chartListSeq = 0;
-  function registerList(title, rows, extra, direct) {
+  function registerList(title, rows, extra, direct, sort) {
     var key = "l" + (chartListSeq++);
-    chartLists[key] = { title: title, rows: rows, extra: extra || null, direct: !!direct };
+    chartLists[key] = { title: title, rows: rows, extra: extra || null, direct: !!direct, sort: sort || null };
     return key;
   }
   function monthKeyFromISO(iso) {
@@ -1250,7 +1294,7 @@
   }
   function defaultListExtra(r) { return r.is_departed ? "Уволен(а)" : stepLabel(r.current_step)[0]; }
   function openListModal(entry) {
-    var sorted = entry.rows.slice().sort(function (a, b) { return a.full_name.localeCompare(b.full_name, "ru"); });
+    var sorted = entry.rows.slice().sort(entry.sort || function (a, b) { return a.full_name.localeCompare(b.full_name, "ru"); });
     var extra = entry.extra || defaultListExtra;
     var items = sorted.map(function (r) {
       return '<div class="list-row" data-row-idx="' + allRows.indexOf(r) + '"><div><div class="n">' + esc(r.full_name) + '</div>' +
@@ -1261,9 +1305,174 @@
       '<div class="modal-head"><div><p class="n">' + esc(entry.title) + '</p>' +
       '<div class="r">' + entry.rows.length + ' чел. · нажми на человека — откроется его карточка</div></div>' +
       '<div class="modal-head-actions"><button class="modal-close" id="modalCloseBtn">✕</button></div></div>' +
-      '<div class="list-modal-body">' + (items || '<div class="list-empty">В этом столбце никого нет.</div>') + '</div>';
+      '<div class="list-modal-body">' + (items || '<div class="list-empty">Пока никого — данных для этой цифры ещё нет.</div>') + '</div>';
     document.getElementById("modalOverlay").classList.add("open");
     document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
+  }
+
+  function plusDaysISO(iso, n) {
+    var d = new Date(iso + "T00:00:00");
+    d.setDate(d.getDate() + n);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function fmtDays(x) { return (Math.round(x * 10) / 10).toString().replace(".", ",") + " дн."; }
+  function daysBetweenTs(a, b) { return (new Date(b) - new Date(a)) / 86400000; }
+  function avg(arr) { return arr.reduce(function (s, v) { return s + v; }, 0) / arr.length; }
+  function median(arr) {
+    var a = arr.slice().sort(function (x, y) { return x - y; });
+    var m = Math.floor(a.length / 2);
+    return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+  }
+
+  // Пользователь, 2026-09-24: «План недели — кто завершает ИС в ближайшие 7
+  // дней, оперативный экран для Ани» (лист метрик отдела). Срок — дедлайн
+  // ИС, а у продлённых — дата продления, если она позже. По ВСЕМ, без
+  // фильтров тулбара — как сигнальная панель: это про «кто требует
+  // внимания сейчас», а не про срез аналитики.
+  function renderWeekPlan(rows) {
+    var el = document.getElementById("weekPlan");
+    var today = todayISO();
+    var end = plusDaysISO(today, 7);
+    document.getElementById("weekPlanRange").textContent = formatDate(today) + " — " + formatDate(end);
+    var pending = [];
+    rows.forEach(function (r) {
+      if (IS_REACHED_STEPS.indexOf(r.current_step) === -1 || r.current_step === "is_completed" || r.is_departed) return;
+      var deadline = r.extended_until && r.extended_until > (r.is_end_date || "") ? r.extended_until : r.is_end_date;
+      if (deadline) pending.push({ r: r, deadline: deadline });
+    });
+    var thisWeek = pending.filter(function (p) { return p.deadline >= today && p.deadline <= end; })
+      .sort(function (a, b) { return a.deadline.localeCompare(b.deadline); });
+    var late = pending.filter(function (p) { return p.deadline < today; });
+
+    var html = thisWeek.length ? thisWeek.map(function (p) {
+      var r = p.r;
+      var left = daysBetweenISO(today, p.deadline);
+      var whenText = left === 0 ? "сегодня" : left === 1 ? "завтра" : "через " + left + " " + ruDays(left);
+      var done = r.tasks_total - r.tasks_remaining;
+      var ri = candidateRiskInfo(r);
+      var chip = ri && ri.pillText ? '<span class="is-signal-pill ' + ri.pillClass + '">' + esc(ri.pillText) + '</span>' : "";
+      var flags = [];
+      if (r.overdue_tasks_count > 0) flags.push('<b class="overdue-count">просрочено ' + r.overdue_tasks_count + '</b>');
+      if (r.admitted_to_defense > 0) flags.push("готово к защите " + r.admitted_to_defense);
+      return '<div class="week-row" data-row-idx="' + allRows.indexOf(r) + '">' +
+        '<div><div class="n">' + esc(r.full_name) + '</div><div class="r">' + esc(r.position) + (r.object_name ? " · " + esc(r.object_name) : "") +
+          (r.manager_full_name ? " · рук. " + esc(r.manager_full_name) : "") + '</div></div>' +
+        '<div class="when">до ' + formatDate(p.deadline) + '<small class="' + (left <= 2 ? "soon" : "") + '">' + whenText + '</small></div>' +
+        '<div class="prog"><b>' + done + '/' + r.tasks_total + '</b> задач защищено' + (flags.length ? '<br>' + flags.join(" · ") : "") + '</div>' +
+        '<div>' + chip + '</div></div>';
+    }).join("") : '<div class="list-empty">В ближайшие 7 дней завершений ИС не запланировано.</div>';
+    if (late.length) {
+      var lateKey = registerList("Срок ИС прошёл, а ИС не завершён", late.map(function (p) { return p.r; }), function (r) {
+        var p = late.filter(function (x) { return x.r === r; })[0];
+        return "срок был " + formatDate(p.deadline);
+      });
+      html += '<div class="week-more" data-list="' + lateKey + '">+ ещё ' + late.length + ' с прошедшим сроком ИС, не завершили — показать</div>';
+    }
+    el.innerHTML = html;
+    el.querySelectorAll(".week-row").forEach(function (row) {
+      row.addEventListener("click", function () { openCandidateModal(allRows[Number(row.getAttribute("data-row-idx"))]); });
+    });
+  }
+
+  // Пользователь, 2026-09-24: «Скорость процесса — средние дни пребординг →
+  // ИС → защита, и сколько задачи висят на предзащите у РАиО; это метрика
+  // самого отдела». Этапы бот пишет только с 2026-09-24 (employee_step_log),
+  // «ждёт контроля с» — с середины сентября: пока данных мало, плитка
+  // честно так и говорит.
+  function renderSpeedStats(rows) {
+    var now = new Date();
+    var byPerson = function (map) { return Object.keys(map).map(function (k) { return map[k]; }); };
+
+    // 1. Пребординг: заведён в боте -> созданы задачи ИС
+    var preb = [];
+    rows.forEach(function (r) {
+      var t = r.step_first_at && r.step_first_at.is_tasks_created;
+      if (!t || !r.created_at) return;
+      var d = daysBetweenTs(r.created_at, t);
+      if (d >= 0) preb.push({ r: r, d: d });
+    });
+
+    // 2. ИС: старт -> завершение (+ отклонение от плана)
+    var isd = [];
+    rows.forEach(function (r) {
+      if (r.current_step !== "is_completed" || !r.completed_at || !r.start_date) return;
+      var done = String(r.completed_at).slice(0, 10);
+      var d = daysBetweenISO(r.start_date, done);
+      if (d < 0 || d > 400) return;
+      isd.push({ r: r, d: d, late: r.is_end_date ? daysBetweenISO(r.is_end_date, done) : null });
+    });
+
+    // 3. Защита: «ждёт контроля» -> «допущено к защите» (реакция РАиО)
+    var react = {};
+    // 4. Сейчас на предзащите у РАиО
+    var wait = {};
+    rows.forEach(function (r) {
+      (r.tasks || []).forEach(function (t) {
+        if (t.review_notified_at && t.admitted_at) {
+          var d = daysBetweenTs(t.review_notified_at, t.admitted_at);
+          if (d >= 0) { var e = react[r.full_name] || (react[r.full_name] = { r: r, ds: [] }); e.ds.push(d); }
+        }
+        if (t.status === "pending_raio_review") {
+          var w = wait[r.full_name] || (wait[r.full_name] = { r: r, n: 0, ds: [] });
+          w.n++;
+          if (t.review_since) w.ds.push(daysBetweenTs(t.review_since, now));
+        }
+      });
+    });
+    var reactRows = byPerson(react), waitRows = byPerson(wait);
+    var reactAll = [].concat.apply([], reactRows.map(function (e) { return e.ds; }));
+    var waitAll = [].concat.apply([], waitRows.map(function (e) { return e.ds; }));
+    var waitTasks = waitRows.reduce(function (s, e) { return s + e.n; }, 0);
+
+    var tiles = [];
+    tiles.push({
+      icon: "total", label: "Пребординг: заведён → созданы задачи ИС",
+      value: preb.length ? fmtDays(avg(preb.map(function (x) { return x.d; }))) : "—",
+      sub: preb.length ? "по " + preb.length + " чел. · медиана " + fmtDays(median(preb.map(function (x) { return x.d; }))) : "бот пишет этапы с 24.09 — цифра появится по мере прохождения",
+      rows: preb.map(function (x) { return x.r; }),
+      extra: function (r) { var x = preb.filter(function (y) { return y.r === r; })[0]; return fmtDays(x.d); },
+    });
+    tiles.push({
+      icon: "extended", label: "ИС: от старта до завершения",
+      value: isd.length ? fmtDays(avg(isd.map(function (x) { return x.d; }))) : "—",
+      sub: isd.length
+        ? "по " + isd.length + " завершившим · медиана " + fmtDays(median(isd.map(function (x) { return x.d; }))) +
+          (function () {
+            var l = isd.filter(function (x) { return x.late !== null; }).map(function (x) { return x.late; });
+            return l.length ? " · к плану " + (avg(l) > 0 ? "+" : "") + fmtDays(avg(l)) : "";
+          })()
+        : "нет завершивших с известной датой завершения",
+      rows: isd.map(function (x) { return x.r; }),
+      extra: function (r) { var x = isd.filter(function (y) { return y.r === r; })[0]; return fmtDays(x.d) + (x.late !== null ? " · к плану " + (x.late > 0 ? "+" : "") + x.late + " дн." : ""); },
+    });
+    tiles.push({
+      icon: "is", label: "Защита: «ждёт контроля» → допущено к защите",
+      value: reactAll.length ? fmtDays(avg(reactAll)) : "—",
+      sub: reactAll.length ? "по " + reactAll.length + " задачам · реакция РАиО" : "время реакции РАиО бот пишет с 24.09 — цифра появится по мере допусков",
+      rows: reactRows.map(function (e) { return e.r; }),
+      extra: function (r) { var e = react[r.full_name]; return e.ds.length + " зад. · в среднем " + fmtDays(avg(e.ds)); },
+    });
+    tiles.push({
+      icon: "overdue", label: "Сейчас на предзащите у РАиО",
+      value: String(waitTasks), unit: waitTasks ? " задач" : "",
+      sub: waitTasks
+        ? "у " + waitRows.length + " чел." + (waitAll.length ? " · ждут в среднем " + fmtDays(avg(waitAll)) + ", дольше всех " + fmtDays(Math.max.apply(null, waitAll)) : "")
+        : "никто не ждёт проверки",
+      rows: waitRows.map(function (e) { return e.r; }),
+      extra: function (r) { var e = wait[r.full_name]; return e.n + " зад." + (e.ds.length ? " · до " + fmtDays(Math.max.apply(null, e.ds)) : ""); },
+      sort: function (a, b) {
+        var ma = wait[a.full_name].ds.length ? Math.max.apply(null, wait[a.full_name].ds) : 0;
+        var mb = wait[b.full_name].ds.length ? Math.max.apply(null, wait[b.full_name].ds) : 0;
+        return mb - ma;
+      },
+    });
+
+    document.getElementById("speedStats").innerHTML = tiles.map(function (t) {
+      return '<div class="stat-card" role="button" tabindex="0" data-list="' + registerList(t.label, t.rows, t.extra, false, t.sort) + '">' +
+        '<span class="icon"><svg viewBox="0 0 24 24" fill="none">' + STAT_ICONS[t.icon] + '</svg></span>' +
+        '<span><div class="label">' + esc(t.label) + '</div><div class="value">' + esc(t.value) + (t.unit ? '<span class="unit">' + esc(t.unit) + '</span>' : "") + '</div>' +
+        '<div class="sub">' + esc(t.sub) + '</div></span></div>';
+    }).join("");
   }
 
   function chartEmpty(el, text) { el.innerHTML = '<div class="chart-empty">' + esc(text) + "</div>"; }
@@ -2272,6 +2481,11 @@
     if (!entry) return;
     if (entry.direct && entry.rows.length === 1) openCandidateModal(entry.rows[0]);
     else openListModal(entry);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var t = e.target.closest ? e.target.closest(".stat-card[data-list]") : null;
+    if (t) { e.preventDefault(); t.click(); }
   });
   document.getElementById("modalCard").addEventListener("click", function (e) {
     var row = e.target.closest ? e.target.closest(".list-row") : null;
