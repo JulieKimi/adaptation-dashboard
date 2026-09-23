@@ -721,6 +721,22 @@
       </div>
     </section>
 
+    <section class="fade-in d2">
+      <h2>Эффективность отдела</h2>
+      <div class="chart-card">
+        <div class="chart-title">Доля окончивших ИС успешно, без продления <small>% от вышедших на ИС, по месяцу старта</small></div>
+        <div id="successRateChart"></div>
+        <div class="chart-legend">
+          <span class="legend-inline-item"><span class="legend-dot" style="background:var(--accent)"></span>УК</span>
+          <span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-blue)"></span>Бары</span>
+        </div>
+      </div>
+      <div class="chart-card" style="margin-top:0.9rem">
+        <div class="chart-title">Расход на одного успешно адаптированного <small>тыс. руб., УК и бары вместе</small></div>
+        <div id="costPerHireChart"></div>
+      </div>
+    </section>
+
     <section class="fade-in d3 candidates-section">
       <!-- Пользователь, 2026-09-17: полоса статуса слева вместо кружка +
            плавающая легенда в левом поле страницы — едет вместе со
@@ -1040,6 +1056,8 @@
     renderFunnel(rows);
     renderMonthChart(rows);
     renderOverdueChart(rows);
+    renderSuccessRateChart(rows);
+    renderCostPerHireChart(rows);
     // Пользователь, 2026-09-24: «по умолчанию не показывались уволенные и
     // завершившие ИС» — только для списка карточек: воронка/графики выше
     // намеренно считают по ВСЕМ (включая ушедших) — это их смысл
@@ -1182,7 +1200,9 @@
     });
     if (!months.length) { chartEmpty(el, "Нет данных о датах старта"); return; }
 
-    var shown = months.slice(-10);
+    // Пользователь, 2026-09-24: «количество вышедших на адаптацию — за
+    // последние 7 месяцев», было 10.
+    var shown = months.slice(-7);
     var dropped = months.length - shown.length;
     var totals = shown.map(function (m) { return byMonth[m].uk + byMonth[m].bars; });
     var max = Math.max.apply(null, totals);
@@ -1218,7 +1238,7 @@
 
     el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '">' + bars + "</svg>" +
       '<div class="chart-note">Сколько кандидатов начали адаптацию в каждом месяце' +
-      (dropped > 0 ? " · показаны последние 10 из " + months.length : "") + "</div>" +
+      (dropped > 0 ? " · показаны последние " + shown.length + " из " + months.length : "") + "</div>" +
       '<div class="chart-legend">' +
       '<span class="legend-inline-item"><span class="legend-dot" style="background:var(--accent)"></span>УК</span>' +
       '<span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-blue)"></span>Бары</span>' +
@@ -1262,6 +1282,111 @@
       '<span class="legend-inline-item"><span class="legend-dot" style="background:var(--danger)"></span>просрочка</span>' +
       '<span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-yellow)"></span>продлён ИС</span>' +
       '</div>';
+    wireBarTooltips(el, function (mark) {
+      return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") };
+    });
+  }
+
+  // Пользователь, 2026-09-24: «доля окончивших ИС успешно, без продления,
+  // % от вышедших на ИС» — тот же смысл, что второй этап воронки
+  // (IS_REACHED_STEPS), только в знаменателе по месяцу СТАРТА (month_year,
+  // тот же «Старт ИС», что везде на дашборде), числитель — успешно
+  // завершили БЕЗ продления (is_completed && !is_probation_extended).
+  function renderSuccessRateChart(rows) {
+    var el = document.getElementById("successRateChart");
+    var byMonth = {};
+    rows.forEach(function (r) {
+      if (!r.month_year || IS_REACHED_STEPS.indexOf(r.current_step) === -1) return;
+      var bucket = byMonth[r.month_year] || (byMonth[r.month_year] = { uk: [0, 0], bars: [0, 0] });
+      var key = r.source_sheet === "bars" ? "bars" : "uk";
+      bucket[key][0]++; // вышли на ИС
+      if (r.current_step === "is_completed" && !r.is_probation_extended) bucket[key][1]++; // успешно, без продления
+    });
+    var months = Object.keys(byMonth).sort(function (a, b) {
+      var pa = a.split("."), pb = b.split(".");
+      return (pa[1] + pa[0]).localeCompare(pb[1] + pb[0]);
+    });
+    if (!months.length) { chartEmpty(el, "Пока никто не вышел на ИС"); return; }
+    var shown = months.slice(-7);
+
+    var w = 300, h = 140, padBottom = 18, padTop = 16;
+    var groupW = Math.min(38, (w / shown.length) - 6);
+    var barW = (groupW - 4) / 2;
+    var gap = (w - groupW * shown.length) / (shown.length + 1);
+    var usableH = h - padTop - padBottom;
+
+    var marks = shown.map(function (m, i) {
+      var b = byMonth[m];
+      var ukPct = b.uk[0] ? Math.round((b.uk[1] / b.uk[0]) * 100) : null;
+      var barsPct = b.bars[0] ? Math.round((b.bars[1] / b.bars[0]) * 100) : null;
+      var x = gap + i * (groupW + gap);
+      var yBottom = h - padBottom;
+      var out = "";
+      if (ukPct !== null) {
+        var ukH = Math.max((ukPct / 100) * usableH, 2);
+        out += '<rect class="bar-mark" data-label="' + esc(m + " · УК: " + b.uk[1] + "/" + b.uk[0]) + '" data-value="' + ukPct + '%" ' +
+          'x="' + x + '" y="' + (yBottom - ukH) + '" width="' + barW + '" height="' + ukH + '" rx="3" fill="var(--accent)"></rect>' +
+          '<text class="value-label" x="' + (x + barW / 2) + '" y="' + (yBottom - ukH - 4) + '" text-anchor="middle">' + ukPct + '</text>';
+      }
+      if (barsPct !== null) {
+        var barsH = Math.max((barsPct / 100) * usableH, 2);
+        var x2 = x + barW + 4;
+        out += '<rect class="bar-mark" data-label="' + esc(m + " · Бары: " + b.bars[1] + "/" + b.bars[0]) + '" data-value="' + barsPct + '%" ' +
+          'x="' + x2 + '" y="' + (yBottom - barsH) + '" width="' + barW + '" height="' + barsH + '" rx="3" fill="var(--status-blue)"></rect>' +
+          '<text class="value-label" x="' + (x2 + barW / 2) + '" y="' + (yBottom - barsH - 4) + '" text-anchor="middle">' + barsPct + '</text>';
+      }
+      var mm = m.split(".")[0];
+      out += '<text class="axis-label" x="' + (x + groupW / 2) + '" y="' + (h - 4) + '" text-anchor="middle">' + esc(MONTH_NAMES[mm] || mm) + '</text>';
+      return out;
+    }).join("");
+
+    el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '">' + marks + "</svg>";
+    wireBarTooltips(el, function (mark) {
+      return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") };
+    });
+  }
+
+  // Пользователь, 2026-09-24: «расход на одного успешно адаптированного» —
+  // ЗП отдела / кол-во успешно завершивших ИС в этом месяце старта (УК+
+  // Бары вместе, без разбивки — так и на её референсе). ЗП пока
+  // константа (её слова, 2026-09-24: «пока будет 140, потом скорректирую»)
+  // — не хранится в БД бота, это внешняя цифра ФОТ РАиО.
+  var DEPARTMENT_PAYROLL_THOUSANDS = 140;
+  function renderCostPerHireChart(rows) {
+    var el = document.getElementById("costPerHireChart");
+    var byMonth = {};
+    rows.forEach(function (r) {
+      if (!r.month_year || r.current_step !== "is_completed") return;
+      byMonth[r.month_year] = (byMonth[r.month_year] || 0) + 1;
+    });
+    var months = Object.keys(byMonth).sort(function (a, b) {
+      var pa = a.split("."), pb = b.split(".");
+      return (pa[1] + pa[0]).localeCompare(pb[1] + pb[0]);
+    });
+    if (!months.length) { chartEmpty(el, "Пока никто не завершил ИС"); return; }
+    var shown = months.slice(-7);
+    var points = shown.map(function (m) { return { m: m, n: byMonth[m], cost: DEPARTMENT_PAYROLL_THOUSANDS / byMonth[m] }; });
+    var max = Math.max.apply(null, points.map(function (p) { return p.cost; }));
+
+    var w = 300, h = 140, padBottom = 18, padTop = 24, padSide = 22;
+    var stepX = points.length > 1 ? (w - padSide * 2) / (points.length - 1) : 0;
+    var scale = max ? (h - padTop - padBottom) / max : 0;
+    var coords = points.map(function (p, i) {
+      return { x: padSide + i * stepX, y: h - padBottom - p.cost * scale, p: p };
+    });
+    var path = coords.map(function (c, i) { return (i === 0 ? "M" : "L") + c.x.toFixed(1) + "," + c.y.toFixed(1); }).join(" ");
+    var marks = coords.map(function (c) {
+      var mm = c.p.m.split(".")[0];
+      return '<circle class="bar-mark" data-label="' + esc(c.p.m + ": ЗП " + DEPARTMENT_PAYROLL_THOUSANDS + " / " + c.p.n + " чел.") + '" data-value="' + c.p.cost.toFixed(1) + ' тыс. руб." ' +
+        'cx="' + c.x + '" cy="' + c.y + '" r="3.5" fill="var(--danger)"></circle>' +
+        '<text class="value-label" x="' + c.x + '" y="' + (c.y - 8) + '" text-anchor="middle">' + c.p.cost.toFixed(1) + '</text>' +
+        '<text class="axis-label" x="' + c.x + '" y="' + (h - 4) + '" text-anchor="middle">' + esc(MONTH_NAMES[mm] || mm) + '</text>';
+    }).join("");
+
+    el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '">' +
+      '<path d="' + path + '" fill="none" stroke="var(--danger)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>' +
+      marks + "</svg>" +
+      '<div class="chart-note">ЗП отдела адаптации — временно фиксированные ' + DEPARTMENT_PAYROLL_THOUSANDS + ' тыс. руб./мес, поправим на реальные позже</div>';
     wireBarTooltips(el, function (mark) {
       return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") };
     });
