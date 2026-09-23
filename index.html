@@ -368,6 +368,28 @@
   .week-row .prog b { color: var(--text); }
   @media (max-width: 720px) { .week-row { grid-template-columns: 1fr auto; } .week-row .prog { grid-column: 1 / -1; } }
   .week-more { font-size: 0.78rem; margin-top: 0.7rem; color: var(--accent-strong); font-weight: 600; cursor: pointer; }
+  .toolbar-link {
+    display: inline-flex; align-items: center; gap: 0.35rem; font: inherit; font-size: 12.5px; color: var(--text-muted);
+    background: none; border: 1px solid var(--border); border-radius: 999px; padding: 7px 12px; cursor: pointer; white-space: nowrap;
+  }
+  .toolbar-link:hover { color: var(--accent-strong); border-color: var(--accent); background: var(--accent-soft); }
+
+  /* Срез по руководителям (Пользователь, 2026-09-24) */
+  .mgr-wrap { max-height: 480px; overflow: auto; }
+  .mgr-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .mgr-table th {
+    position: sticky; top: 0; background: var(--surface); text-align: right; padding: 0.5rem 0.6rem; cursor: pointer; user-select: none;
+    font-family: var(--font-display); font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-faint); border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  .mgr-table th:first-child, .mgr-table td:first-child { text-align: left; }
+  .mgr-table th:hover { color: var(--accent-strong); }
+  .mgr-table td { padding: 0.5rem 0.6rem; text-align: right; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  .mgr-table tr:last-child td { border-bottom: none; }
+  .mgr-table td.name { font-weight: 600; }
+  .mgr-table .mgr-link { cursor: pointer; border-bottom: 1px dashed var(--text-faint); }
+  .mgr-table .mgr-link:hover { color: var(--accent-strong); border-color: var(--accent); }
+  .mgr-table .bad { color: color-mix(in srgb, var(--danger) 70%, var(--text-muted)); font-weight: 700; }
   .list-empty { padding: 1.2rem 1.4rem; font-size: 0.85rem; color: var(--text-faint); }
   .chart-legend { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; margin-top: 0.6rem; font-size: 0.72rem; color: var(--text-muted); }
   .bar-mark { transition: filter 0.12s ease; }
@@ -739,6 +761,7 @@
       <label class="toolbar-check" for="showArchived">
         <input type="checkbox" id="showArchived">Показывать уволенных и завершивших ИС
       </label>
+      <button class="toolbar-link" id="copyLinkBtn" type="button" title="Скопировать ссылку на этот срез — вкладка и фильтры">🔗 Ссылка на срез</button>
       <span class="filter-count" id="filterCount"></span>
       <button class="toolbar-clear" id="clearFiltersBtn">Сбросить фильтры</button>
     </div>
@@ -815,6 +838,12 @@
 
     <div id="viewInternal" hidden>
     <section class="fade-in d2">
+      <h2>Требует внимания сегодня</h2>
+      <div class="stats" id="attentionStats"></div>
+      <div class="chart-note" id="attentionNote" style="margin: -0.4rem 0 1.4rem"></div>
+    </section>
+
+    <section class="fade-in d2">
       <h2>План недели</h2>
       <div class="chart-card">
         <div class="chart-title">Кто завершает ИС в ближайшие 7 дней <small id="weekPlanRange"></small></div>
@@ -855,10 +884,22 @@
           <div class="chart-title">Расход на одного успешно адаптированного <small>тыс. руб., УК и бары вместе</small></div>
           <div id="costPerHireChart"></div>
         </div>
-        <div class="chart-card" style="grid-column: 1 / -1">
+        <div class="chart-card">
+          <div class="chart-title">Антирейтинг: оценки ниже 4 <small>средняя по Алёне / рук. / Ане</small></div>
+          <div id="evalAntiChart"></div>
+        </div>
+        <div class="chart-card">
           <div class="chart-title">Отработали 60+ дней с даты старта оффера <small>по месяцу старта</small></div>
           <div id="retentionStats"></div>
         </div>
+      </div>
+    </section>
+
+    <section class="fade-in d2">
+      <h2>Срез по руководителям</h2>
+      <div class="chart-card">
+        <div class="chart-title">Кто из руководителей чаще даёт просрочки, продления и низкие оценки <small>нажми на заголовок — сортировка, на число — список людей</small></div>
+        <div class="mgr-wrap" id="mgrTable"></div>
       </div>
     </section>
     </div>
@@ -1038,6 +1079,8 @@
           '<button class="logout" id="logoutBtn2">Выйти</button>';
         document.getElementById("logoutBtn2").addEventListener("click", doLogout);
         populateFilters(allRows);
+        applyStateFromURL();
+        urlSyncReady = true;
         renderErrors(payload.errors || []);
         render();
         openFromHashIfPresent();
@@ -1141,6 +1184,9 @@
     renderPlanFactChart(rows);
     renderSpeedStats(rows);
     renderWeekPlan(allRows);
+    renderAttention(allRows);
+    renderManagerTable(rows);
+    renderEvalAntirating(rows);
     // Пользователь, 2026-09-24: «по умолчанию не показывались уволенные и
     // завершившие ИС» — только для списка карточек: воронка/графики выше
     // намеренно считают по ВСЕМ (включая ушедших) — это их смысл
@@ -1152,6 +1198,7 @@
     var showArchived = document.getElementById("showArchived").checked || statusFilterValue === "is_completed";
     renderCards(showArchived ? rows : rows.filter(function (r) { return !isArchivedRow(r); }));
     renderRetentionStats(allRows);
+    syncURL();
   }
 
   function renderPeriodChip() {
@@ -1473,6 +1520,197 @@
         '<span><div class="label">' + esc(t.label) + '</div><div class="value">' + esc(t.value) + (t.unit ? '<span class="unit">' + esc(t.unit) + '</span>' : "") + '</div>' +
         '<div class="sub">' + esc(t.sub) + '</div></span></div>';
     }).join("");
+  }
+
+  // Пользователь, 2026-09-24: «Требует внимания сегодня» — на листе метрик
+  // отдела адаптации. По ВСЕМ (не режем фильтрами тулбара), как «План
+  // недели»: это про «за кого браться сейчас».
+  var PREDEFENSE_WAIT_ALERT_DAYS = 3;
+  function effectiveDeadline(r) {
+    return r.extended_until && r.extended_until > (r.is_end_date || "") ? r.extended_until : r.is_end_date;
+  }
+  function renderAttention(rows) {
+    var today = todayISO();
+    var now = new Date();
+    var active = rows.filter(isCurrentlyActive);
+    var onIsTrack = active.filter(function (r) { return IS_REACHED_STEPS.indexOf(r.current_step) !== -1; });
+    var stuckWait = {};
+    active.forEach(function (r) {
+      (r.tasks || []).forEach(function (t) {
+        if (t.status !== "pending_raio_review" || !t.review_since) return;
+        var d = daysBetweenTs(t.review_since, now);
+        if (d >= PREDEFENSE_WAIT_ALERT_DAYS) {
+          var e = stuckWait[r.full_name] || (stuckWait[r.full_name] = { r: r, n: 0, max: 0 });
+          e.n++; e.max = Math.max(e.max, d);
+        }
+      });
+    });
+    var stuckRows = Object.keys(stuckWait).map(function (k) { return stuckWait[k].r; });
+    var noMentor = active.filter(function (r) { return !r.mentor_full_name; });
+    var noManagerEval = onIsTrack.filter(function (r) {
+      return r.start_date && today >= plusDaysISO(r.start_date, 14) && r.eval_manager_avg == null;
+    });
+    var late = onIsTrack.filter(function (r) { var d = effectiveDeadline(r); return d && d < today; });
+    var noTasks = active.filter(function (r) { return r.current_step === "is_tasks_created" && r.tasks_total === 0; });
+    var overdue2 = active.filter(function (r) { return r.overdue_tasks_count >= 2; });
+
+    var tiles = [
+      { icon: "overdue", warn: true, label: "Просрочено 2+ задач", rows: overdue2,
+        extra: function (r) { return "просрочено " + r.overdue_tasks_count + (r.is_probation_extended ? " · продлён" : ""); } },
+      { icon: "overdue", warn: true, label: "Срок ИС прошёл, не завершили", rows: late,
+        extra: function (r) { return "срок был " + formatDate(effectiveDeadline(r)); } },
+      { icon: "overdue", warn: true, label: "ИС начат, а задач нет", rows: noTasks,
+        extra: function () { return "задач ИС в Битриксе нет"; } },
+      { icon: "overdue", warn: true, label: "Задачи ждут РАиО дольше " + PREDEFENSE_WAIT_ALERT_DAYS + " дней", rows: stuckRows,
+        extra: function (r) { var e = stuckWait[r.full_name]; return e.n + " зад. · до " + fmtDays(e.max); },
+        sort: function (a, b) { return stuckWait[b.full_name].max - stuckWait[a.full_name].max; } },
+      { icon: "extended", warn: false, label: "Оценка руководителя не пришла", rows: noManagerEval,
+        extra: function (r) { return "ждём с " + formatDate(plusDaysISO(r.start_date, 14)); } },
+      { icon: "total", warn: false, label: "Нет наставника", rows: noMentor,
+        extra: function (r) { return "рук. " + (r.manager_full_name || "не указан"); } },
+    ].filter(function (t) { return t.rows.length > 0; });
+
+    document.getElementById("attentionStats").innerHTML = tiles.map(function (t) {
+      var names = t.rows.slice(0, 3).map(function (r) { return r.full_name; }).join(", ") + (t.rows.length > 3 ? "…" : "");
+      return '<div class="stat-card' + (t.warn ? " warn" : "") + '" role="button" tabindex="0" data-list="' + registerList(t.label, t.rows, t.extra, false, t.sort) + '">' +
+        '<span class="icon"><svg viewBox="0 0 24 24" fill="none">' + STAT_ICONS[t.icon] + '</svg></span>' +
+        '<span><div class="label">' + esc(t.label) + '</div><div class="value">' + t.rows.length + '</div><div class="sub">' + esc(names) + '</div></span></div>';
+    }).join("") || '<div class="list-empty">Сейчас ничего не требует внимания.</div>';
+    document.getElementById("attentionNote").textContent =
+      "Только те, кто сейчас в адаптации · нажми на плитку — список людей.";
+  }
+
+  // Пользователь, 2026-09-24: «срез по руководителям — кто чаще даёт
+  // просрочки, продления и низкие оценки». Считается с учётом фильтров.
+  var mgrSort = { key: "overdue", dir: -1 };
+  var mgrRowsCache = [];
+  function personEvalMean(r) {
+    var v = [r.eval_alena_avg, r.eval_manager_avg, r.eval_anya_avg].filter(function (x) { return x != null; });
+    return v.length ? avg(v) : null;
+  }
+  function renderManagerTable(rows) {
+    mgrRowsCache = rows;
+    var by = {};
+    rows.forEach(function (r) {
+      var k = r.manager_full_name || "не указан";
+      (by[k] = by[k] || []).push(r);
+    });
+    var list = Object.keys(by).map(function (name) {
+      var all = by[name];
+      var active = all.filter(isCurrentlyActive);
+      var overdueRows = active.filter(function (r) { return r.overdue_tasks_count > 0; });
+      var overdueTasks = overdueRows.reduce(function (s, r) { return s + r.overdue_tasks_count; }, 0);
+      var extRows = all.filter(function (r) { return r.is_probation_extended || r.extended_until; });
+      var means = all.map(personEvalMean).filter(function (x) { return x !== null; });
+      var lowRows = all.filter(function (r) { var m = personEvalMean(r); return m !== null && m < 4; });
+      return { name: name, all: all, active: active, overdueRows: overdueRows, overdueTasks: overdueTasks, extRows: extRows,
+        score: means.length ? avg(means) : null, lowRows: lowRows };
+    });
+    var val = {
+      name: function (m) { return m.name; }, total: function (m) { return m.all.length; }, active: function (m) { return m.active.length; },
+      overdue: function (m) { return m.overdueRows.length * 1000 + m.overdueTasks; }, ext: function (m) { return m.extRows.length; },
+      score: function (m) { return m.score; }, low: function (m) { return m.lowRows.length; },
+    }[mgrSort.key];
+    list.sort(function (a, b) {
+      var x = val(a), y = val(b);
+      if (mgrSort.key === "name") return mgrSort.dir * x.localeCompare(y, "ru");
+      if (x === null && y === null) return 0;
+      if (x === null) return 1;
+      if (y === null) return -1;
+      return mgrSort.dir * (x - y) || a.name.localeCompare(b.name, "ru");
+    });
+    var cell = function (title, rs, extra, bad) {
+      return rs.length ? '<span class="mgr-link' + (bad ? " bad" : "") + '" data-list="' + registerList(title, rs, extra) + '">' + rs.length + "</span>" : "0";
+    };
+    var arrow = function (k) { return mgrSort.key === k ? (mgrSort.dir === 1 ? " ▲" : " ▼") : ""; };
+    var head = [["name", "Руководитель"], ["total", "Людей"], ["active", "В адаптации"], ["overdue", "Просрочили"], ["ext", "Продлений"], ["score", "Ср. оценка"], ["low", "Оценка &lt; 4"]]
+      .map(function (h) { return '<th data-sort="' + h[0] + '">' + h[1] + arrow(h[0]) + "</th>"; }).join("");
+    var body = list.map(function (m) {
+      return "<tr><td class=\"name\">" + esc(m.name) + "</td>" +
+        "<td>" + cell(m.name + " — все сотрудники", m.all, defaultListExtra) + "</td>" +
+        "<td>" + cell(m.name + " — сейчас в адаптации", m.active, defaultListExtra) + "</td>" +
+        "<td>" + (m.overdueRows.length
+          ? cell(m.name + " — с просрочками", m.overdueRows, function (r) { return "просрочено " + r.overdue_tasks_count; }, true) + " · " + m.overdueTasks + " зад."
+          : "0") + "</td>" +
+        "<td>" + cell(m.name + " — продления ИС", m.extRows, function (r) { return r.extended_until ? "продлён до " + formatDate(r.extended_until) : "продлён"; }) + "</td>" +
+        "<td>" + (m.score !== null ? '<span class="' + (m.score < 4 ? "bad" : "") + '">' + m.score.toFixed(1) + "</span>" : "—") + "</td>" +
+        "<td>" + cell(m.name + " — средняя оценка ниже 4", m.lowRows, function (r) { return "средняя " + personEvalMean(r).toFixed(1); }, true) + "</td></tr>";
+    }).join("");
+    var el = document.getElementById("mgrTable");
+    el.innerHTML = "<table class=\"mgr-table\"><thead><tr>" + head + "</tr></thead><tbody>" + body + "</tbody></table>";
+    el.querySelectorAll("th").forEach(function (th) {
+      th.addEventListener("click", function () {
+        var k = th.getAttribute("data-sort");
+        mgrSort = { key: k, dir: mgrSort.key === k ? -mgrSort.dir : (k === "name" ? 1 : -1) };
+        renderManagerTable(mgrRowsCache);
+      });
+    });
+  }
+
+  // Пользователь, 2026-09-24: «интересно смотреть тех, у кого средняя
+  // оценка ниже 4 — антирейтинг по оценкам». Средняя по тем опросам
+  // (Алёна / рук. / Аня), которые уже есть.
+  function renderEvalAntirating(rows) {
+    var el = document.getElementById("evalAntiChart");
+    var low = rows.map(function (r) { return { r: r, m: personEvalMean(r) }; })
+      .filter(function (x) { return x.m !== null && x.m < 4; })
+      .sort(function (a, b) { return a.m - b.m; });
+    if (!low.length) { chartEmpty(el, "Оценок ниже 4 нет"); return; }
+    var shown = low.slice(0, 8);
+    var dropped = low.length - shown.length;
+    var w = 300, rowH = 22, h = shown.length * rowH;
+    var f = function (v) { return v == null ? "—" : v.toFixed(1); };
+    var bars = shown.map(function (x, i) {
+      var r = x.r, barW = (x.m / 5) * (w - 70), y = i * rowH;
+      var shortName = r.full_name.length > 16 ? r.full_name.slice(0, 15) + "…" : r.full_name;
+      var key = registerList(r.full_name, [r], null, true);
+      var tip = r.full_name + ": Алёна " + f(r.eval_alena_avg) + " · рук. " + f(r.eval_manager_avg) + " · Аня " + f(r.eval_anya_avg);
+      return '<text class="axis-label" data-list="' + key + '" x="0" y="' + (y + rowH / 2 + 3) + '" text-anchor="start">' + esc(shortName) + "</text>" +
+        '<rect class="bar-mark" data-list="' + key + '" data-label="' + esc(tip) + '" data-value="' + x.m.toFixed(1) + '" x="88" y="' + (y + 4) + '" width="' + Math.max(barW, 3) + '" height="' + (rowH - 10) + '" rx="4" fill="' + (x.m < 3 ? "var(--danger)" : "var(--status-yellow)") + '"></rect>' +
+        '<text class="value-label" x="' + (88 + barW + 6) + '" y="' + (y + rowH / 2 + 3) + '" text-anchor="start">' + x.m.toFixed(1) + "</text>";
+    }).join("");
+    el.innerHTML = '<svg viewBox="0 0 ' + w + " " + h + '" width="100%" height="' + h + '">' + bars + "</svg>" +
+      (dropped > 0 ? '<div class="chart-note">+' + dropped + " ещё с оценкой ниже 4</div>" : "") +
+      '<div class="chart-legend">' +
+      '<span class="legend-inline-item"><span class="legend-dot" style="background:var(--danger)"></span>ниже 3</span>' +
+      '<span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-yellow)"></span>3–4</span></div>';
+    wireBarTooltips(el, function (mark) { return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") }; });
+  }
+
+  // Пользователь, 2026-09-24: «ссылка на срез — фильтры и вкладка сохраняются
+  // в адресе, чтобы отправить руководителю "вот мои люди"». Параметры
+  // читаются один раз при загрузке (до того, как что-то успеет их стереть).
+  var initialParams = new URLSearchParams(location.search);
+  var urlSyncReady = false;
+  function applyStateFromURL() {
+    var p = initialParams;
+    var setSel = function (id, v) {
+      var el = document.getElementById(id);
+      if (v && Array.prototype.some.call(el.options, function (o) { return o.value === v; })) el.value = v;
+    };
+    if (p.get("q")) document.getElementById("search").value = p.get("q");
+    setSel("monthFilter", p.get("month"));
+    setSel("statusFilter", p.get("status"));
+    setSel("sourceFilter", p.get("source"));
+    setSel("sortBy", p.get("sort"));
+    if (p.get("arch") === "1") document.getElementById("showArchived").checked = true;
+    if (p.get("view") === "internal" || p.get("view") === "main") setView(p.get("view"));
+  }
+  function syncURL() {
+    if (!urlSyncReady) return;
+    var p = new URLSearchParams();
+    var q = document.getElementById("search").value.trim();
+    if (q) p.set("q", q);
+    [["monthFilter", "month"], ["statusFilter", "status"], ["sourceFilter", "source"]].forEach(function (pair) {
+      var v = document.getElementById(pair[0]).value;
+      if (v) p.set(pair[1], v);
+    });
+    var sort = document.getElementById("sortBy").value;
+    if (sort && sort !== "overdue_desc") p.set("sort", sort);
+    if (document.getElementById("showArchived").checked) p.set("arch", "1");
+    if (!document.getElementById("viewInternal").hidden) p.set("view", "internal");
+    var qs = p.toString();
+    history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + location.hash);
   }
 
   function chartEmpty(el, text) { el.innerHTML = '<div class="chart-empty">' + esc(text) + "</div>"; }
@@ -2505,6 +2743,7 @@
       b.setAttribute("aria-selected", on ? "true" : "false");
     });
     try { localStorage.setItem("dashboard_view", view); } catch (err) { /* private mode */ }
+    syncURL();
   }
   document.querySelectorAll(".view-tab").forEach(function (b) {
     b.addEventListener("click", function () { setView(b.getAttribute("data-view")); });
@@ -2513,6 +2752,14 @@
   try { savedView = localStorage.getItem("dashboard_view"); } catch (err) { /* private mode */ }
   setView(savedView === "internal" ? "internal" : "main");
 
+  document.getElementById("copyLinkBtn").addEventListener("click", function () {
+    var btn = document.getElementById("copyLinkBtn");
+    if (!navigator.clipboard) { window.prompt("Скопируй ссылку:", location.href); return; }
+    navigator.clipboard.writeText(location.href).then(function () {
+      btn.textContent = "✓ Скопировано";
+      setTimeout(function () { btn.textContent = "🔗 Ссылка на срез"; }, 1500);
+    });
+  });
   document.getElementById("clearFiltersBtn").addEventListener("click", function () {
     document.getElementById("search").value = "";
     document.getElementById("monthFilter").value = "";
