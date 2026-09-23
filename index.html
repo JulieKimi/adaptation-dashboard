@@ -1428,11 +1428,6 @@
     var d = new Date();
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   }
-  function addDaysISO(iso, n) {
-    var d = new Date(iso + "T00:00:00");
-    d.setDate(d.getDate() + n);
-    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-  }
   function daysBetweenISO(fromIso, toIso) {
     return Math.round((new Date(toIso + "T00:00:00") - new Date(fromIso + "T00:00:00")) / 86400000);
   }
@@ -1556,41 +1551,26 @@
       '</div>';
   }
 
-  // Первый дедлайн задачи ИС ~= конец 1-й недели — берём его минус 7 дней
-  // как точку отсчёта старта ИС (для сравнения темпа). Без этого
-  // «прошло % срока» посчитать не из чего — is_end_date у нас только
-  // конечная дата.
+  // Пользователь, 2026-09-24: «риск» — планка от 2 просроченных задач, не
+  // темп выполнения относительно прошедшего времени. Старая формула
+  // ("% времени опережает % сданных задач на 15 п.п.") могла показать
+  // риск при 0-1 просрочках, если время шло быстрее задач, и наоборот —
+  // не показать при паре реальных просрочек, если срок ИС длинный.
   function isPaceInfo(row) {
     if (!row.is_end_date || !row.tasks || !row.tasks.length) return null;
-    var deadlines = row.tasks.map(function (t) { return t.deadline; }).filter(Boolean).sort();
-    if (!deadlines.length) return null;
-    var firstDeadlineIso = deadlines[0].slice(0, 10);
-    var startIso = addDaysISO(firstDeadlineIso, -7);
-    var today = todayISO();
-    var totalSpan = daysBetweenISO(startIso, row.is_end_date);
-    if (totalSpan <= 0) return null;
-    var elapsed = Math.max(0, Math.min(totalSpan, daysBetweenISO(startIso, today)));
-    var elapsedFraction = elapsed / totalSpan;
-    var doneCount = row.tasks.filter(isSubmittedTask).length;
-    var doneFraction = row.tasks.length ? doneCount / row.tasks.length : 0;
-    var status = "ok";
-    if (elapsedFraction < 0.15) status = "watch";
-    else if (doneFraction + 0.15 < elapsedFraction) status = "risk";
+    var status = row.overdue_tasks_count >= 2 ? "risk" : "ok";
     // Продлённый ИС уже согласован — не подсвечиваем красным "риском"
     // то, что и так известно и одобрено руководителем.
     if (row.is_probation_extended && status === "risk") status = "extended";
-    var daysLeft = daysBetweenISO(today, row.is_end_date);
-    return {
-      elapsedFraction: elapsedFraction, doneFraction: doneFraction, status: status,
-      daysLeft: daysLeft, doneCount: doneCount, totalCount: row.tasks.length,
-    };
+    var daysLeft = daysBetweenISO(todayISO(), row.is_end_date);
+    return { status: status, daysLeft: daysLeft };
   }
 
   // Пользователь, 2026-09-17: «3 и 4 скриншот как будто можно объединить —
   // сделать в формате кликабельного списка». Статус/риск ИС (раньше
   // отдельная панель isRiskPanel) теперь считается для каждой строки
   // списка кандидатов прямо здесь — см. candidateRiskInfo ниже.
-  var PACE_STATUS_LABEL = { ok: "в темпе", watch: "рано судить", risk: "риск", extended: "продлён" };
+  var PACE_STATUS_LABEL = { risk: "риск", extended: "продлён" };
   // Пользователь, 2026-09-22: единая классификация задачи (см.
   // dashboard_export._classify_task) — те же 5 статусов и здесь, и в
   // подсчёте «готово к защите»/«просрочено» на карточке списка.
@@ -1598,12 +1578,6 @@
     defended: "Защищена", ready_for_defense: "Готова к защите",
     pending_raio_review: "На предзащите у РАиО", overdue: "Просрочена", in_progress: "В процессе",
   };
-  // «Сдано, в каком-то виде» — сотрудник закрыл свою часть, независимо от
-  // того, подтвердила ли Аня/Б24 уже сам факт. Используется для
-  // прогресс-бара и «M выполнено» — не только «Защищена».
-  var SUBMITTED_STATUSES = ["defended", "ready_for_defense", "pending_raio_review"];
-  function isSubmittedTask(t) { return SUBMITTED_STATUSES.indexOf(t.status) !== -1; }
-
   function wireSignalRowClicks(container, rowsInOrder) {
     var items = container.querySelectorAll("[data-name]");
     items.forEach(function (item, i) {
