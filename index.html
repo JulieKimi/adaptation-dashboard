@@ -254,6 +254,15 @@
   .toolbar select:hover { background: var(--border); }
   .toolbar select.active { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); font-weight: 600; }
   .toolbar .spacer { flex: 1; }
+  /* Пользователь, 2026-09-24: «по умолчанию не показывались завершенные
+     ИС и уволенные» — карточка списка по умолчанию их прячет, этот
+     чекбокс — единственный способ снова показать (не через select, чтобы
+     не путать с обычными фильтрами по статусу/месяцу). */
+  .toolbar-check {
+    display: flex; align-items: center; gap: 0.4rem; font-size: 12.5px; color: var(--text-muted);
+    white-space: nowrap; cursor: pointer; user-select: none;
+  }
+  .toolbar-check input { accent-color: var(--accent); cursor: pointer; }
   .filter-count {
     display: none; align-items: center; font-size: 12px; font-weight: 700; color: var(--accent-strong);
     background: var(--accent-soft); border-radius: 999px; padding: 7px 12px; font-family: var(--font-display); white-space: nowrap;
@@ -675,6 +684,9 @@
         <option value="start_desc">Сначала недавние старты</option>
         <option value="remaining_desc">Сначала больше задач осталось</option>
       </select>
+      <label class="toolbar-check" for="showArchived">
+        <input type="checkbox" id="showArchived">Показывать уволенных и завершивших ИС
+      </label>
       <span class="filter-count" id="filterCount"></span>
       <button class="toolbar-clear" id="clearFiltersBtn">Сбросить фильтры</button>
     </div>
@@ -1028,7 +1040,16 @@
     renderFunnel(rows);
     renderMonthChart(rows);
     renderOverdueChart(rows);
-    renderCards(rows);
+    // Пользователь, 2026-09-24: «по умолчанию не показывались уволенные и
+    // завершившие ИС» — только для списка карточек: воронка/графики выше
+    // намеренно считают по ВСЕМ (включая ушедших) — это их смысл
+    // («сколько прошло», «сколько закрепилось»), список карточек — про
+    // тех, с кем нужно работать прямо сейчас. Явный выбор «ИС пройден» в
+    // статус-фильтре — уже осознанный запрос именно этих людей, чекбокс
+    // не должен молча стирать то, что человек только что сам выбрал.
+    var statusFilterValue = document.getElementById("statusFilter").value;
+    var showArchived = document.getElementById("showArchived").checked || statusFilterValue === "is_completed";
+    renderCards(showArchived ? rows : rows.filter(function (r) { return !isArchivedRow(r); }));
     renderRetentionStats(allRows);
   }
 
@@ -1089,7 +1110,8 @@
     var month = document.getElementById("monthFilter").value;
     var status = document.getElementById("statusFilter").value;
     var source = document.getElementById("sourceFilter").value;
-    var active = [search, month, status, source].filter(Boolean).length;
+    var showArchived = document.getElementById("showArchived").checked;
+    var active = [search, month, status, source].filter(Boolean).length + (showArchived ? 1 : 0);
     var countEl = document.getElementById("filterCount");
     var clearBtn = document.getElementById("clearFiltersBtn");
     countEl.style.display = active ? "inline-flex" : "none";
@@ -1105,10 +1127,15 @@
   // Пользователь, 2026-09-24: «раздели внутри графика УК и Бары» — заливка
   // каждого этапа составлена из двух сегментов по source_sheet.
   function renderFunnel(rows) {
+    // Пользователь, 2026-09-24: «добавим твою идею» — 4-й этап
+    // «Закрепились» смыкает воронку с графиком «Закрепляемость» ниже
+    // (тот же порог 60 дней, см. renderRetentionStats/tenureDaysFor).
+    var today = todayISO();
     var stageDefs = [
       { label: "Всего в адаптации", test: function () { return true; } },
       { label: "Приступили к задачам ИС", test: function (r) { return IS_REACHED_STEPS.indexOf(r.current_step) !== -1; } },
       { label: "Прошли ИС", test: function (r) { return r.current_step === "is_completed"; } },
+      { label: "Закрепились (60+ дней)", test: function (r) { var d = tenureDaysFor(r, today); return d !== null && d >= 60; } },
     ];
     var stages = stageDefs.map(function (s) {
       var matched = rows.filter(s.test);
@@ -1952,7 +1979,7 @@
   updateThemeToggleButton();
 
   // ---- wiring ------------------------------------------------------------
-  ["search", "monthFilter", "statusFilter", "sourceFilter", "sortBy"].forEach(function (id) {
+  ["search", "monthFilter", "statusFilter", "sourceFilter", "sortBy", "showArchived"].forEach(function (id) {
     var el = document.getElementById(id);
     el.addEventListener(id === "search" ? "input" : "change", render);
   });
@@ -1961,6 +1988,7 @@
     document.getElementById("monthFilter").value = "";
     document.getElementById("statusFilter").value = "";
     document.getElementById("sourceFilter").value = "";
+    document.getElementById("showArchived").checked = false;
     render();
   });
 
