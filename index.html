@@ -288,10 +288,15 @@
   .funnel-row:hover { background: var(--surface-alt); }
   .funnel-label { font-size: 0.78rem; color: var(--text-muted); }
   .funnel-track { height: 18px; background: var(--surface-alt); border-radius: 6px; overflow: hidden; }
-  .funnel-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--accent-strong), var(--accent)); transition: width 0.4s ease; }
+  /* Пользователь, 2026-09-24: «раздели внутри графика УК и Бары сразу» —
+     заливка теперь составлена из двух сегментов (см. .funnel-seg), а не
+     сплошного градиента. */
+  .funnel-fill { height: 100%; display: flex; transition: width 0.4s ease; }
+  .funnel-seg { height: 100%; }
+  .funnel-seg.uk { background: var(--accent); }
+  .funnel-seg.bars { background: var(--status-blue); }
   .funnel-value { font-family: var(--font-display); font-weight: 800; font-size: 0.85rem; text-align: right; white-space: nowrap; }
   .funnel-pct { font-weight: 600; color: var(--text-faint); font-size: 0.68rem; margin-left: 0.2rem; }
-  .funnel-note { font-size: 0.72rem; color: var(--text-faint); margin-top: 0.7rem; }
 
   /* ---------- overview charts ---------- */
   .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
@@ -299,6 +304,11 @@
   .value-label { font-size: 11px; fill: var(--text); font-weight: 700; font-family: var(--font-body); }
   .axis-label { font-size: 10.5px; fill: var(--text-faint); font-family: var(--font-body); }
   .chart-note { font-size: 0.72rem; color: var(--text-faint); margin-top: 0.6rem; }
+  /* Пользователь, 2026-09-24: «на обоих графиках не забудь легенду» —
+     цвет теперь что-то значит (УК/Бары, продлён/просрочен), нужна
+     подпись. Отдельный класс, не .legend-inline — тот скрыт до узких
+     экранов, эта легенда нужна всегда, раз цвет несёт смысл. */
+  .chart-legend { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; margin-top: 0.6rem; font-size: 0.72rem; color: var(--text-muted); }
   .bar-mark { transition: filter 0.12s ease; }
   .bar-mark:hover { filter: brightness(1.1); }
 
@@ -676,9 +686,12 @@
     <section class="fade-in d2">
       <h2>Воронка адаптации</h2>
       <div class="chart-card">
-        <div class="chart-title">По текущему выбору <small id="funnelPeriod"></small></div>
+        <div class="chart-title">Сколько дошло до каждого этапа <small id="funnelPeriod"></small></div>
         <div class="funnel" id="funnel"></div>
-        <div class="funnel-note">«Новые офферы» пока не показаны — эти данные лежат в офферы-боте, не в этой базе.</div>
+        <div class="chart-legend">
+          <span class="legend-inline-item"><span class="legend-dot" style="background:var(--accent)"></span>УК</span>
+          <span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-blue)"></span>Бары</span>
+        </div>
       </div>
     </section>
 
@@ -739,9 +752,8 @@
     <section class="fade-in d3">
       <h2>Закрепляемость</h2>
       <div class="chart-card">
-        <div class="chart-title">Отработали 60+ дней с даты старта оффера</div>
-        <div class="stats" id="retentionStats" style="margin-bottom:0"></div>
-        <div class="funnel-note">Реальные дни стажа — где есть данные из листа; для остальных — расчёт по дате старта. Это не % удержания, а сколько человек дошли до контрольной точки 60 дней.</div>
+        <div class="chart-title">Отработали 60+ дней с даты старта оффера <small>по месяцу старта</small></div>
+        <div id="retentionStats"></div>
       </div>
     </section>
 
@@ -1034,7 +1046,6 @@
     is: '<path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>',
     overdue: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
     extended: '<path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>',
-    retained: '<path d="M4 12l5 5L20 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   };
 
   // Пользователь, 2026-09-16: одобренное продление ИС (row.is_probation_extended)
@@ -1060,10 +1071,10 @@
     var stats = [
       [active.length, "Всего в адаптации", "total", false],
       [onIs, "Сотрудников на ИС", "is", false],
-      [overdue, "Сотрудники, которые просрочили ИС", "overdue", true],
+      [overdue, "Сотрудники, которые просрочили задачи ИС", "overdue", true],
     ];
     if (extended > 0) {
-      stats.push([extended, "Продлён ИС (не просрочка)", "extended", false]);
+      stats.push([extended, "Продлён срок ИС", "extended", false]);
     }
     document.getElementById("stats").innerHTML = stats.map(function (s) {
       return '<div class="stat-card' + (s[3] ? " warn" : "") + '">' +
@@ -1089,24 +1100,35 @@
     document.getElementById("sourceFilter").classList.toggle("active", !!source);
   }
 
-  // Воронка — три реальных этапа из БД адаптация-бота. Четвёртый,
-  // «Новые офферы», требует данных офферов-бота — см. funnel-note в разметке.
+  // Воронка — три реальных этапа из БД адаптация-бота. «Новые офферы»
+  // (данные офферы-бота, не этой базы) сюда не входят.
+  // Пользователь, 2026-09-24: «раздели внутри графика УК и Бары» — заливка
+  // каждого этапа составлена из двух сегментов по source_sheet.
   function renderFunnel(rows) {
-    var stages = [
-      ["В процессе адаптации", rows.length],
-      ["Приступили к задачам ИС", rows.filter(function (r) { return IS_REACHED_STEPS.indexOf(r.current_step) !== -1; }).length],
-      ["Прошли ИС", rows.filter(function (r) { return r.current_step === "is_completed"; }).length],
+    var stageDefs = [
+      { label: "Всего в адаптации", test: function () { return true; } },
+      { label: "Приступили к задачам ИС", test: function (r) { return IS_REACHED_STEPS.indexOf(r.current_step) !== -1; } },
+      { label: "Прошли ИС", test: function (r) { return r.current_step === "is_completed"; } },
     ];
-    var max = stages[0][1] || 1;
+    var stages = stageDefs.map(function (s) {
+      var matched = rows.filter(s.test);
+      var uk = matched.filter(function (r) { return r.source_sheet !== "bars"; }).length;
+      return { label: s.label, total: matched.length, uk: uk, bars: matched.length - uk };
+    });
+    var max = stages[0].total || 1;
     var el = document.getElementById("funnel");
     el.innerHTML = stages.map(function (s, i) {
-      var pct = max ? Math.round(s[1] / max * 100) : 0;
+      var pct = max ? Math.round(s.total / max * 100) : 0;
+      var ukPct = s.total ? Math.round(s.uk / s.total * 100) : 0;
       var pctLabel = i === 0 ? "" : '<span class="funnel-pct">' + pct + '%</span>';
-      var tip = s[0] + ": " + s[1] + " из " + max + " (" + pct + "%)";
-      return '<div class="funnel-row" data-label="' + esc(tip) + '" data-value="' + s[1] + '">' +
-        '<div class="funnel-label">' + esc(s[0]) + '</div>' +
-        '<div class="funnel-track"><div class="funnel-fill" style="width:' + pct + '%"></div></div>' +
-        '<div class="funnel-value">' + s[1] + pctLabel + '</div>' +
+      var tip = s.label + ": " + s.total + " из " + max + " (" + pct + "%) — УК " + s.uk + ", Бары " + s.bars;
+      return '<div class="funnel-row" data-label="' + esc(tip) + '" data-value="' + s.total + '">' +
+        '<div class="funnel-label">' + esc(s.label) + '</div>' +
+        '<div class="funnel-track"><div class="funnel-fill" style="width:' + pct + '%">' +
+          (s.uk > 0 ? '<span class="funnel-seg uk" style="width:' + ukPct + '%"></span>' : '') +
+          (s.bars > 0 ? '<span class="funnel-seg bars" style="width:' + (100 - ukPct) + '%"></span>' : '') +
+          '</div></div>' +
+        '<div class="funnel-value">' + s.total + pctLabel + '</div>' +
         '</div>';
     }).join("");
     wireBarTooltips(el, function (mark) {
@@ -1116,12 +1138,16 @@
 
   function chartEmpty(el, text) { el.innerHTML = '<div class="chart-empty">' + esc(text) + "</div>"; }
 
+  // Пользователь, 2026-09-24: «размести внутри сколько УК, а сколько
+  // Бары, а лучше на одном графике, чтобы складывалось» — один столбец
+  // на месяц, УК снизу + Бары сверху (stacked), не два отдельных графика.
   function renderMonthChart(rows) {
     var el = document.getElementById("monthChart");
     var byMonth = {};
     rows.forEach(function (r) {
       if (!r.month_year) return;
-      byMonth[r.month_year] = (byMonth[r.month_year] || 0) + 1;
+      var bucket = byMonth[r.month_year] || (byMonth[r.month_year] = { uk: 0, bars: 0 });
+      bucket[r.source_sheet === "bars" ? "bars" : "uk"]++;
     });
     var months = Object.keys(byMonth).sort(function (a, b) {
       var pa = a.split("."), pb = b.split(".");
@@ -1131,35 +1157,58 @@
 
     var shown = months.slice(-10);
     var dropped = months.length - shown.length;
-    var max = Math.max.apply(null, shown.map(function (m) { return byMonth[m]; }));
+    var totals = shown.map(function (m) { return byMonth[m].uk + byMonth[m].bars; });
+    var max = Math.max.apply(null, totals);
 
     var w = 300, h = 130, padBottom = 18, padTop = 16;
     var bw = Math.min(24, (w / shown.length) - 8);
     var gap = (w - bw * shown.length) / (shown.length + 1);
+    var scale = max ? (h - padTop - padBottom) / max : 0;
 
     var bars = shown.map(function (m, i) {
-      var n = byMonth[m];
-      var barH = max ? (n / max) * (h - padTop - padBottom) : 0;
+      var bucket = byMonth[m];
+      var n = bucket.uk + bucket.bars;
+      var ukH = bucket.uk * scale, barsH = bucket.bars * scale;
       var x = gap + i * (bw + gap);
-      var y = h - padBottom - barH;
+      var yBottom = h - padBottom;
+      var ukY = yBottom - ukH;
+      var barsY = ukY - barsH;
       var mm = m.split(".")[0];
-      return '<rect class="bar-mark" data-label="' + esc(m) + '" data-value="' + n + '" ' +
-        'x="' + x + '" y="' + y + '" width="' + bw + '" height="' + Math.max(barH, 2) + '" rx="4" fill="var(--accent)"></rect>' +
-        '<text class="value-label" x="' + (x + bw / 2) + '" y="' + (y - 5) + '" text-anchor="middle">' + n + '</text>' +
+      var tip = m + ": УК " + bucket.uk + ", Бары " + bucket.bars;
+      var segs = "";
+      if (bucket.uk > 0) {
+        segs += '<rect class="bar-mark" data-label="' + esc(tip) + '" data-value="' + n + '" ' +
+          'x="' + x + '" y="' + ukY + '" width="' + bw + '" height="' + Math.max(ukH, 2) + '" rx="' + (bucket.bars > 0 ? "0" : "4") + '" fill="var(--accent)"></rect>';
+      }
+      if (bucket.bars > 0) {
+        segs += '<rect class="bar-mark" data-label="' + esc(tip) + '" data-value="' + n + '" ' +
+          'x="' + x + '" y="' + barsY + '" width="' + bw + '" height="' + Math.max(barsH, 2) + '" rx="' + (bucket.uk > 0 ? "0" : "4") + '" fill="var(--status-blue)"></rect>';
+      }
+      return segs +
+        '<text class="value-label" x="' + (x + bw / 2) + '" y="' + (barsY - 5) + '" text-anchor="middle">' + n + '</text>' +
         '<text class="axis-label" x="' + (x + bw / 2) + '" y="' + (h - 4) + '" text-anchor="middle">' + esc(MONTH_NAMES[mm] || mm) + '</text>';
     }).join("");
 
     el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '">' + bars + "</svg>" +
       '<div class="chart-note">Сколько кандидатов начали адаптацию в каждом месяце' +
-      (dropped > 0 ? " · показаны последние 10 из " + months.length : "") + "</div>";
+      (dropped > 0 ? " · показаны последние 10 из " + months.length : "") + "</div>" +
+      '<div class="chart-legend">' +
+      '<span class="legend-inline-item"><span class="legend-dot" style="background:var(--accent)"></span>УК</span>' +
+      '<span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-blue)"></span>Бары</span>' +
+      '</div>';
     wireBarTooltips(el, function (mark) {
       return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") };
     });
   }
 
+  // Пользователь, 2026-09-24: «из просрочек убери кто уволен или окончил
+  // ИС» (архивным людям просрочки уже не актуальны) — но «оставь всех у
+  // кого есть просрочки, в том числе у кого есть продления ИС, продления
+  // выдели цветом» — раньше продлённые вообще исключались из антирейтинга,
+  // теперь остаются, просто другим цветом (жёлтый вместо красного).
   function renderOverdueChart(rows) {
     var el = document.getElementById("overdueChart");
-    var overdue = rows.filter(function (r) { return r.overdue_tasks_count > 0 && !r.is_probation_extended; })
+    var overdue = rows.filter(function (r) { return isCurrentlyActive(r) && r.overdue_tasks_count > 0; })
       .sort(function (a, b) { return b.overdue_tasks_count - a.overdue_tasks_count; });
     if (!overdue.length) { chartEmpty(el, "Просрочек нет 🎉"); return; }
 
@@ -1173,14 +1222,19 @@
       var barW = max ? (r.overdue_tasks_count / max) * (w - 70) : 0;
       var y = i * rowH;
       var shortName = r.full_name.length > 16 ? r.full_name.slice(0, 15) + "…" : r.full_name;
+      var color = r.is_probation_extended ? "var(--status-yellow)" : "var(--danger)";
       return '<text class="axis-label" x="0" y="' + (y + rowH / 2 + 3) + '" text-anchor="start">' + esc(shortName) + "</text>" +
-        '<rect class="bar-mark" data-label="' + esc(r.full_name) + '" data-value="' + r.overdue_tasks_count + ' задач" ' +
-          'x="88" y="' + (y + 4) + '" width="' + Math.max(barW, 3) + '" height="' + (rowH - 10) + '" rx="4" fill="var(--danger)"></rect>' +
+        '<rect class="bar-mark" data-label="' + esc(r.full_name) + (r.is_probation_extended ? " (продлён ИС)" : "") + '" data-value="' + r.overdue_tasks_count + ' задач" ' +
+          'x="88" y="' + (y + 4) + '" width="' + Math.max(barW, 3) + '" height="' + (rowH - 10) + '" rx="4" fill="' + color + '"></rect>' +
         '<text class="value-label" x="' + (88 + barW + 6) + '" y="' + (y + rowH / 2 + 3) + '" text-anchor="start">' + r.overdue_tasks_count + "</text>";
     }).join("");
 
     el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '">' + bars + "</svg>" +
-      (dropped > 0 ? '<div class="chart-note">+' + dropped + " ещё с просрочкой</div>" : "");
+      (dropped > 0 ? '<div class="chart-note">+' + dropped + " ещё с просрочкой</div>" : "") +
+      '<div class="chart-legend">' +
+      '<span class="legend-inline-item"><span class="legend-dot" style="background:var(--danger)"></span>просрочка</span>' +
+      '<span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-yellow)"></span>продлён ИС</span>' +
+      '</div>';
     wireBarTooltips(el, function (mark) {
       return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") };
     });
@@ -1314,11 +1368,19 @@
         ? '<span class="is-signal-pill ' + risk.pillClass + '">' + esc(risk.pillText) + '</span>' +
           (risk.note ? '<span class="role" style="margin:0">' + esc(risk.note) + '</span>' : "")
         : "";
+      // Пользователь, 2026-09-24: «где рук и наст одно и то же лицо —
+      // указывать одной строкой» — раньше показывали "рук. Имя" и
+      // "наст. Имя" отдельными строками даже когда это один человек.
+      var sameManagerAndMentor = r.mentor_full_name && r.manager_full_name &&
+        r.mentor_full_name.trim() === r.manager_full_name.trim();
+      var managerMentorLines = sameManagerAndMentor
+        ? '<p class="manager-line">рук. и наст. ' + esc(r.manager_full_name) + '</p>'
+        : '<p class="manager-line">' + esc(r.manager_full_name ? "рук. " + r.manager_full_name : "руководитель не указан") + '</p>' +
+          (r.mentor_full_name ? '<p class="mentor-line">наст. ' + esc(r.mentor_full_name) + '</p>' : "");
       var idBlock = '<div class="name-block-wrap">' +
         '<div class="name-block"><div class="name-row"><p class="name">' + esc(r.full_name) + '</p>' + riskChip + '</div>' +
         '<p class="role">' + esc(r.position) + (r.object_name ? " · " + esc(r.object_name) : "") + '</p>' +
-        '<p class="manager-line">' + esc(r.manager_full_name ? "рук. " + r.manager_full_name : "руководитель не указан") + '</p>' +
-        (r.mentor_full_name ? '<p class="mentor-line">наст. ' + esc(r.mentor_full_name) + '</p>' : "") +
+        managerMentorLines +
         '</div></div>';
 
       // Пользователь, 2026-09-17: «Задачи ИС» (is_tasks_created) —
@@ -1558,18 +1620,52 @@
     return row.start_date ? daysBetweenISO(row.start_date, today) : null;
   }
 
+  // Пользователь, 2026-09-24: «сделай по месячно» — один агрегатный
+  // счётчик заменён на график по месяцу старта, тем же визуальным языком,
+  // что «Когда стартовали кандидаты» (см. renderMonthChart).
   function renderRetentionStats(rows) {
     var el = document.getElementById("retentionStats");
     if (!el) return;
     var today = todayISO();
-    var reached60 = rows.filter(function (r) {
+    var byMonth = {};
+    rows.forEach(function (r) {
+      if (!r.month_year) return;
       var days = tenureDaysFor(r, today);
-      return days !== null && days >= 60;
-    }).length;
-    el.innerHTML = '<div class="stat-card">' +
-      '<span class="icon"><svg viewBox="0 0 24 24" fill="none">' + STAT_ICONS.retained + '</svg></span>' +
-      '<span><div class="label">Отработали 60+ дней</div><div class="value">' + reached60 + '</div></span>' +
-      '</div>';
+      if (days === null || days < 60) return;
+      byMonth[r.month_year] = (byMonth[r.month_year] || 0) + 1;
+    });
+    var months = Object.keys(byMonth).sort(function (a, b) {
+      var pa = a.split("."), pb = b.split(".");
+      return (pa[1] + pa[0]).localeCompare(pb[1] + pb[0]);
+    });
+    if (!months.length) { chartEmpty(el, "Пока никто не дошёл до 60 дней"); return; }
+
+    var shown = months.slice(-10);
+    var max = Math.max.apply(null, shown.map(function (m) { return byMonth[m]; }));
+
+    var w = 300, h = 130, padBottom = 18, padTop = 16;
+    var bw = Math.min(24, (w / shown.length) - 8);
+    var gap = (w - bw * shown.length) / (shown.length + 1);
+
+    var bars = shown.map(function (m, i) {
+      var n = byMonth[m];
+      var barH = max ? (n / max) * (h - padTop - padBottom) : 0;
+      var x = gap + i * (bw + gap);
+      var y = h - padBottom - barH;
+      var mm = m.split(".")[0];
+      return '<rect class="bar-mark" data-label="' + esc(m) + '" data-value="' + n + '" ' +
+        'x="' + x + '" y="' + y + '" width="' + bw + '" height="' + Math.max(barH, 2) + '" rx="4" fill="var(--success)"></rect>' +
+        '<text class="value-label" x="' + (x + bw / 2) + '" y="' + (y - 5) + '" text-anchor="middle">' + n + '</text>' +
+        '<text class="axis-label" x="' + (x + bw / 2) + '" y="' + (h - 4) + '" text-anchor="middle">' + esc(MONTH_NAMES[mm] || mm) + '</text>';
+    }).join("");
+
+    el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '">' + bars + "</svg>" +
+      '<div class="chart-note">Сколько человек из стартовавших в этом месяце дошли до 60 дней стажа · ' +
+      'реальные дни — где есть данные из листа, для остальных — расчёт по дате старта · ' +
+      'последние месяцы могут быть занижены — 60 дней с их старта ещё не прошло.</div>';
+    wireBarTooltips(el, function (mark) {
+      return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") };
+    });
   }
 
   // Пользователь, 2026-09-24: «риск» — планка от 2 просроченных задач, не
@@ -1749,10 +1845,15 @@
     }
     // Пользователь, 2026-09-17: «в дашборде отображать наставника рядом с
     // руководителем» — в карточке списка это уже так (manager-line/
-    // mentor-line), здесь та же пара строк для модалки.
-    var managerLine = '<div class="r" style="margin-top:0.2rem">' +
-      esc(row.manager_full_name ? "рук. " + row.manager_full_name : "руководитель не указан") + '</div>';
-    var mentorLine = row.mentor_full_name
+    // mentor-line), здесь та же пара строк для модалки. Пользователь,
+    // 2026-09-24: одна строка, когда это один и тот же человек.
+    var sameManagerAndMentorModal = row.mentor_full_name && row.manager_full_name &&
+      row.mentor_full_name.trim() === row.manager_full_name.trim();
+    var managerLine = sameManagerAndMentorModal
+      ? '<div class="r" style="margin-top:0.2rem">рук. и наст. ' + esc(row.manager_full_name) + '</div>'
+      : '<div class="r" style="margin-top:0.2rem">' +
+        esc(row.manager_full_name ? "рук. " + row.manager_full_name : "руководитель не указан") + '</div>';
+    var mentorLine = (row.mentor_full_name && !sameManagerAndMentorModal)
       ? '<div class="r" style="color:var(--text-faint)">наст. ' + esc(row.mentor_full_name) + '</div>'
       : "";
     document.getElementById("modalCard").innerHTML =
