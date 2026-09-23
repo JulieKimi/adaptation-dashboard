@@ -317,6 +317,34 @@
      цвет теперь что-то значит (УК/Бары, продлён/просрочен), нужна
      подпись. Отдельный класс, не .legend-inline — тот скрыт до узких
      экранов, эта легенда нужна всегда, раз цвет несёт смысл. */
+  /* Пользователь, 2026-09-24: два листа — «Основное» и «Метрики отдела
+     адаптации» (внутренние, мало интересные заказчикам). */
+  .view-tabs {
+    display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 18px; padding: 4px; width: fit-content; max-width: 100%;
+    background: var(--surface-alt); border: 1px solid var(--border); border-radius: 999px;
+  }
+  .view-tab {
+    font: inherit; font-size: 13px; font-weight: 600; color: var(--text-muted); background: none; border: 0;
+    border-radius: 999px; padding: 7px 16px; cursor: pointer; transition: background 0.12s ease, color 0.12s ease;
+  }
+  .view-tab:hover { color: var(--text); }
+  .view-tab.active { background: var(--surface); color: var(--accent-strong); box-shadow: var(--shadow); }
+  .view-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Пользователь, 2026-09-24: «по всем графикам при нажатии на столбец
+     видеть список, кто вошёл в столбец». */
+  [data-list] { cursor: pointer; }
+  .list-modal-body { max-height: 65vh; overflow-y: auto; }
+  .list-row {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 48%); align-items: center; gap: 0.8rem;
+    padding: 0.6rem 1.4rem; border-bottom: 1px solid var(--border); cursor: pointer;
+  }
+  .list-row:last-child { border-bottom: none; }
+  .list-row:hover { background: var(--surface-alt); }
+  .list-row .n { font-family: var(--font-display); font-weight: 700; font-size: 0.86rem; }
+  .list-row .r { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem; }
+  .list-row .x { font-size: 0.72rem; color: var(--text-faint); text-align: right; overflow-wrap: anywhere; }
+  .list-empty { padding: 1.2rem 1.4rem; font-size: 0.85rem; color: var(--text-faint); }
   .chart-legend { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; margin-top: 0.6rem; font-size: 0.72rem; color: var(--text-muted); }
   .bar-mark { transition: filter 0.12s ease; }
   .bar-mark:hover { filter: brightness(1.1); }
@@ -691,49 +719,31 @@
       <button class="toolbar-clear" id="clearFiltersBtn">Сбросить фильтры</button>
     </div>
 
+    <div class="view-tabs" role="tablist" aria-label="Лист дашборда">
+      <button class="view-tab active" role="tab" aria-selected="true" data-view="main" id="tabMain">Основное</button>
+      <button class="view-tab" role="tab" aria-selected="false" data-view="internal" id="tabInternal">Метрики отдела адаптации</button>
+    </div>
+
+    <div id="viewMain">
     <div class="stats fade-in d1" id="stats"></div>
 
     <section class="signal-panel fade-in d1" id="tomorrowPanel"></section>
 
     <section class="fade-in d2">
-      <h2>Воронка адаптации</h2>
-      <div class="chart-card">
-        <div class="chart-title">Сколько дошло до каждого этапа <small id="funnelPeriod"></small></div>
-        <div class="funnel" id="funnel"></div>
-        <div class="chart-legend">
-          <span class="legend-inline-item"><span class="legend-dot" style="background:var(--accent)"></span>УК</span>
-          <span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-blue)"></span>Бары</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="fade-in d2">
-      <h2>Обзор</h2>
+      <h2>Воронка и просрочки</h2>
       <div class="charts">
         <div class="chart-card">
-          <div class="chart-title">Когда стартовали кандидаты <small>дата начала адаптации</small></div>
-          <div id="monthChart"></div>
+          <div class="chart-title">Сколько дошло до каждого этапа <small id="funnelPeriod"></small></div>
+          <div class="funnel" id="funnel"></div>
+          <div class="chart-legend">
+            <span class="legend-inline-item"><span class="legend-dot" style="background:var(--accent)"></span>УК</span>
+            <span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-blue)"></span>Бары</span>
+          </div>
         </div>
         <div class="chart-card">
           <div class="chart-title">Антирейтинг: просрочки ИС <small>задач просрочено, по сотрудникам</small></div>
           <div id="overdueChart"></div>
         </div>
-      </div>
-    </section>
-
-    <section class="fade-in d2">
-      <h2>Эффективность отдела</h2>
-      <div class="chart-card">
-        <div class="chart-title">Доля окончивших ИС успешно, без продления <small>% от вышедших на ИС, по месяцу старта</small></div>
-        <div id="successRateChart"></div>
-        <div class="chart-legend">
-          <span class="legend-inline-item"><span class="legend-dot" style="background:var(--accent)"></span>УК</span>
-          <span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-blue)"></span>Бары</span>
-        </div>
-      </div>
-      <div class="chart-card" style="margin-top:0.9rem">
-        <div class="chart-title">Расход на одного успешно адаптированного <small>тыс. руб., УК и бары вместе</small></div>
-        <div id="costPerHireChart"></div>
       </div>
     </section>
 
@@ -777,13 +787,43 @@
       <div class="empty" id="empty" style="display:none">Ничего не найдено по заданным фильтрам.</div>
     </section>
 
-    <section class="fade-in d3">
-      <h2>Закрепляемость</h2>
-      <div class="chart-card">
-        <div class="chart-title">Отработали 60+ дней с даты старта оффера <small>по месяцу старта</small></div>
-        <div id="retentionStats"></div>
+    </div>
+
+    <div id="viewInternal" hidden>
+    <section class="fade-in d2">
+      <h2>Метрики отдела адаптации</h2>
+      <div class="charts">
+        <div class="chart-card">
+          <div class="chart-title">Когда стартовали кандидаты <small>дата начала адаптации</small></div>
+          <div id="monthChart"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">План / Факт по завершению ИС <small>по месяцу дедлайна / завершения</small></div>
+          <div id="planFactChart"></div>
+          <div class="chart-legend">
+            <span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-blue)"></span>План</span>
+            <span class="legend-inline-item"><span class="legend-dot" style="background:var(--success)"></span>Факт</span>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Доля окончивших ИС успешно, без продления <small>% от вышедших на ИС, по месяцу старта</small></div>
+          <div id="successRateChart"></div>
+          <div class="chart-legend">
+            <span class="legend-inline-item"><span class="legend-dot" style="background:var(--accent)"></span>УК</span>
+            <span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-blue)"></span>Бары</span>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Расход на одного успешно адаптированного <small>тыс. руб., УК и бары вместе</small></div>
+          <div id="costPerHireChart"></div>
+        </div>
+        <div class="chart-card" style="grid-column: 1 / -1">
+          <div class="chart-title">Отработали 60+ дней с даты старта оффера <small>по месяцу старта</small></div>
+          <div id="retentionStats"></div>
+        </div>
       </div>
     </section>
+    </div>
 
     <div class="errors" id="rowErrors"></div>
   </section>
@@ -1045,6 +1085,8 @@
   }
 
   function render() {
+    chartLists = {};
+    chartListSeq = 0;
     var rows = filteredRows();
     renderPeriodChip();
     updateFilterIndicator();
@@ -1058,6 +1100,7 @@
     renderOverdueChart(rows);
     renderSuccessRateChart(rows);
     renderCostPerHireChart(rows);
+    renderPlanFactChart(rows);
     // Пользователь, 2026-09-24: «по умолчанию не показывались уволенные и
     // завершившие ИС» — только для списка карточек: воронка/графики выше
     // намеренно считают по ВСЕМ (включая ушедших) — это их смысл
@@ -1146,8 +1189,8 @@
   // каждого этапа составлена из двух сегментов по source_sheet.
   function renderFunnel(rows) {
     // Пользователь, 2026-09-24: «добавим твою идею» — 4-й этап
-    // «Закрепились» смыкает воронку с графиком «Закрепляемость» ниже
-    // (тот же порог 60 дней, см. renderRetentionStats/tenureDaysFor).
+    // «Закрепились» смыкает воронку с графиком «Закрепляемость» (тот же
+    // порог 60 дней, см. renderRetentionStats/tenureDaysFor).
     var today = todayISO();
     var stageDefs = [
       { label: "Всего в адаптации", test: function () { return true; } },
@@ -1157,8 +1200,9 @@
     ];
     var stages = stageDefs.map(function (s) {
       var matched = rows.filter(s.test);
-      var uk = matched.filter(function (r) { return r.source_sheet !== "bars"; }).length;
-      return { label: s.label, total: matched.length, uk: uk, bars: matched.length - uk };
+      var ukRows = matched.filter(function (r) { return r.source_sheet !== "bars"; });
+      var barsRows = matched.filter(function (r) { return r.source_sheet === "bars"; });
+      return { label: s.label, total: matched.length, all: matched, ukRows: ukRows, barsRows: barsRows, uk: ukRows.length, bars: barsRows.length };
     });
     var max = stages[0].total || 1;
     var el = document.getElementById("funnel");
@@ -1167,11 +1211,12 @@
       var ukPct = s.total ? Math.round(s.uk / s.total * 100) : 0;
       var pctLabel = i === 0 ? "" : '<span class="funnel-pct">' + pct + '%</span>';
       var tip = s.label + ": " + s.total + " из " + max + " (" + pct + "%) — УК " + s.uk + ", Бары " + s.bars;
-      return '<div class="funnel-row" data-label="' + esc(tip) + '" data-value="' + s.total + '">' +
+      var allKey = registerList(s.label + " — все", s.all);
+      return '<div class="funnel-row" data-list="' + allKey + '" data-label="' + esc(tip) + '" data-value="' + s.total + '">' +
         '<div class="funnel-label">' + esc(s.label) + '</div>' +
         '<div class="funnel-track"><div class="funnel-fill" style="width:' + pct + '%">' +
-          (s.uk > 0 ? '<span class="funnel-seg uk" style="width:' + ukPct + '%"></span>' : '') +
-          (s.bars > 0 ? '<span class="funnel-seg bars" style="width:' + (100 - ukPct) + '%"></span>' : '') +
+          (s.uk > 0 ? '<span class="funnel-seg uk" data-list="' + registerList(s.label + " · УК", s.ukRows) + '" style="width:' + ukPct + '%"></span>' : '') +
+          (s.bars > 0 ? '<span class="funnel-seg bars" data-list="' + registerList(s.label + " · Бары", s.barsRows) + '" style="width:' + (100 - ukPct) + '%"></span>' : '') +
           '</div></div>' +
         '<div class="funnel-value">' + s.total + pctLabel + '</div>' +
         '</div>';
@@ -1179,6 +1224,46 @@
     wireBarTooltips(el, function (mark) {
       return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") };
     }, ".funnel-row");
+  }
+
+  // Пользователь, 2026-09-24: «по всем графикам при нажатии на столбец
+  // видеть список, кто вошёл в столбец» — каждый столбец/точка несёт
+  // data-list с ключом записи в chartLists (список людей + подпись). Реестр
+  // пересобирается на каждый render(), строки — те же объекты, что в allRows.
+  var chartLists = {};
+  var chartListSeq = 0;
+  function registerList(title, rows, extra, direct) {
+    var key = "l" + (chartListSeq++);
+    chartLists[key] = { title: title, rows: rows, extra: extra || null, direct: !!direct };
+    return key;
+  }
+  function monthKeyFromISO(iso) {
+    if (!iso || String(iso).length < 7) return null;
+    var y = String(iso).slice(0, 4), m = String(iso).slice(5, 7);
+    return /^\d{4}$/.test(y) && /^\d{2}$/.test(m) ? m + "." + y : null;
+  }
+  function sortMonthKeys(keys) {
+    return keys.sort(function (a, b) {
+      var pa = a.split("."), pb = b.split(".");
+      return (pa[1] + pa[0]).localeCompare(pb[1] + pb[0]);
+    });
+  }
+  function defaultListExtra(r) { return r.is_departed ? "Уволен(а)" : stepLabel(r.current_step)[0]; }
+  function openListModal(entry) {
+    var sorted = entry.rows.slice().sort(function (a, b) { return a.full_name.localeCompare(b.full_name, "ru"); });
+    var extra = entry.extra || defaultListExtra;
+    var items = sorted.map(function (r) {
+      return '<div class="list-row" data-row-idx="' + allRows.indexOf(r) + '"><div><div class="n">' + esc(r.full_name) + '</div>' +
+        '<div class="r">' + esc(r.position) + (r.object_name ? " · " + esc(r.object_name) : "") + '</div></div>' +
+        '<div class="x">' + esc(extra(r)) + '</div></div>';
+    }).join("");
+    document.getElementById("modalCard").innerHTML =
+      '<div class="modal-head"><div><p class="n">' + esc(entry.title) + '</p>' +
+      '<div class="r">' + entry.rows.length + ' чел. · нажми на человека — откроется его карточка</div></div>' +
+      '<div class="modal-head-actions"><button class="modal-close" id="modalCloseBtn">✕</button></div></div>' +
+      '<div class="list-modal-body">' + (items || '<div class="list-empty">В этом столбце никого нет.</div>') + '</div>';
+    document.getElementById("modalOverlay").classList.add("open");
+    document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
   }
 
   function chartEmpty(el, text) { el.innerHTML = '<div class="chart-empty">' + esc(text) + "</div>"; }
@@ -1191,45 +1276,43 @@
     var byMonth = {};
     rows.forEach(function (r) {
       if (!r.month_year) return;
-      var bucket = byMonth[r.month_year] || (byMonth[r.month_year] = { uk: 0, bars: 0 });
-      bucket[r.source_sheet === "bars" ? "bars" : "uk"]++;
+      var bucket = byMonth[r.month_year] || (byMonth[r.month_year] = { uk: [], bars: [] });
+      bucket[r.source_sheet === "bars" ? "bars" : "uk"].push(r);
     });
-    var months = Object.keys(byMonth).sort(function (a, b) {
-      var pa = a.split("."), pb = b.split(".");
-      return (pa[1] + pa[0]).localeCompare(pb[1] + pb[0]);
-    });
+    var months = sortMonthKeys(Object.keys(byMonth));
     if (!months.length) { chartEmpty(el, "Нет данных о датах старта"); return; }
 
     // Пользователь, 2026-09-24: «количество вышедших на адаптацию — за
     // последние 7 месяцев», было 10.
     var shown = months.slice(-7);
     var dropped = months.length - shown.length;
-    var totals = shown.map(function (m) { return byMonth[m].uk + byMonth[m].bars; });
+    var totals = shown.map(function (m) { return byMonth[m].uk.length + byMonth[m].bars.length; });
     var max = Math.max.apply(null, totals);
 
     var w = 300, h = 130, padBottom = 18, padTop = 16;
     var bw = Math.min(24, (w / shown.length) - 8);
     var gap = (w - bw * shown.length) / (shown.length + 1);
     var scale = max ? (h - padTop - padBottom) / max : 0;
+    var startExtra = function (r) { return "старт " + formatDate(r.start_date); };
 
     var bars = shown.map(function (m, i) {
       var bucket = byMonth[m];
-      var n = bucket.uk + bucket.bars;
-      var ukH = bucket.uk * scale, barsH = bucket.bars * scale;
+      var n = bucket.uk.length + bucket.bars.length;
+      var ukH = bucket.uk.length * scale, barsH = bucket.bars.length * scale;
       var x = gap + i * (bw + gap);
       var yBottom = h - padBottom;
       var ukY = yBottom - ukH;
       var barsY = ukY - barsH;
       var mm = m.split(".")[0];
-      var tip = m + ": УК " + bucket.uk + ", Бары " + bucket.bars;
+      var tip = m + ": УК " + bucket.uk.length + ", Бары " + bucket.bars.length;
       var segs = "";
-      if (bucket.uk > 0) {
-        segs += '<rect class="bar-mark" data-label="' + esc(tip) + '" data-value="' + n + '" ' +
-          'x="' + x + '" y="' + ukY + '" width="' + bw + '" height="' + Math.max(ukH, 2) + '" rx="' + (bucket.bars > 0 ? "0" : "4") + '" fill="var(--accent)"></rect>';
+      if (bucket.uk.length > 0) {
+        segs += '<rect class="bar-mark" data-list="' + registerList("Стартовали " + m + " · УК", bucket.uk, startExtra) + '" data-label="' + esc(tip) + '" data-value="' + n + '" ' +
+          'x="' + x + '" y="' + ukY + '" width="' + bw + '" height="' + Math.max(ukH, 2) + '" rx="' + (bucket.bars.length > 0 ? "0" : "4") + '" fill="var(--accent)"></rect>';
       }
-      if (bucket.bars > 0) {
-        segs += '<rect class="bar-mark" data-label="' + esc(tip) + '" data-value="' + n + '" ' +
-          'x="' + x + '" y="' + barsY + '" width="' + bw + '" height="' + Math.max(barsH, 2) + '" rx="' + (bucket.uk > 0 ? "0" : "4") + '" fill="var(--status-blue)"></rect>';
+      if (bucket.bars.length > 0) {
+        segs += '<rect class="bar-mark" data-list="' + registerList("Стартовали " + m + " · Бары", bucket.bars, startExtra) + '" data-label="' + esc(tip) + '" data-value="' + n + '" ' +
+          'x="' + x + '" y="' + barsY + '" width="' + bw + '" height="' + Math.max(barsH, 2) + '" rx="' + (bucket.uk.length > 0 ? "0" : "4") + '" fill="var(--status-blue)"></rect>';
       }
       return segs +
         '<text class="value-label" x="' + (x + bw / 2) + '" y="' + (barsY - 5) + '" text-anchor="middle">' + n + '</text>' +
@@ -1238,7 +1321,7 @@
 
     el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '">' + bars + "</svg>" +
       '<div class="chart-note">Сколько кандидатов начали адаптацию в каждом месяце' +
-      (dropped > 0 ? " · показаны последние " + shown.length + " из " + months.length : "") + "</div>" +
+      (dropped > 0 ? " · показаны последние " + shown.length + " из " + months.length : "") + " · нажми на столбец — список людей</div>" +
       '<div class="chart-legend">' +
       '<span class="legend-inline-item"><span class="legend-dot" style="background:var(--accent)"></span>УК</span>' +
       '<span class="legend-inline-item"><span class="legend-dot" style="background:var(--status-blue)"></span>Бары</span>' +
@@ -1270,8 +1353,8 @@
       var y = i * rowH;
       var shortName = r.full_name.length > 16 ? r.full_name.slice(0, 15) + "…" : r.full_name;
       var color = r.is_probation_extended ? "var(--status-yellow)" : "var(--danger)";
-      return '<text class="axis-label" x="0" y="' + (y + rowH / 2 + 3) + '" text-anchor="start">' + esc(shortName) + "</text>" +
-        '<rect class="bar-mark" data-label="' + esc(r.full_name) + (r.is_probation_extended ? " (продлён ИС)" : "") + '" data-value="' + r.overdue_tasks_count + ' задач" ' +
+      return '<text class="axis-label" data-list="' + registerList(r.full_name, [r], null, true) + '" x="0" y="' + (y + rowH / 2 + 3) + '" text-anchor="start">' + esc(shortName) + "</text>" +
+        '<rect class="bar-mark" data-list="' + registerList(r.full_name, [r], null, true) + '" data-label="' + esc(r.full_name) + (r.is_probation_extended ? " (продлён ИС)" : "") + '" data-value="' + r.overdue_tasks_count + ' задач" ' +
           'x="88" y="' + (y + 4) + '" width="' + Math.max(barW, 3) + '" height="' + (rowH - 10) + '" rx="4" fill="' + color + '"></rect>' +
         '<text class="value-label" x="' + (88 + barW + 6) + '" y="' + (y + rowH / 2 + 3) + '" text-anchor="start">' + r.overdue_tasks_count + "</text>";
     }).join("");
@@ -1297,15 +1380,12 @@
     var byMonth = {};
     rows.forEach(function (r) {
       if (!r.month_year || IS_REACHED_STEPS.indexOf(r.current_step) === -1) return;
-      var bucket = byMonth[r.month_year] || (byMonth[r.month_year] = { uk: [0, 0], bars: [0, 0] });
-      var key = r.source_sheet === "bars" ? "bars" : "uk";
-      bucket[key][0]++; // вышли на ИС
-      if (r.current_step === "is_completed" && !r.is_probation_extended) bucket[key][1]++; // успешно, без продления
+      var bucket = byMonth[r.month_year] || (byMonth[r.month_year] = { uk: { out: [], ok: 0 }, bars: { out: [], ok: 0 } });
+      var side = bucket[r.source_sheet === "bars" ? "bars" : "uk"];
+      side.out.push(r); // вышли на ИС
+      if (r.current_step === "is_completed" && !r.is_probation_extended && !r.extended_until) side.ok++; // успешно, без продления
     });
-    var months = Object.keys(byMonth).sort(function (a, b) {
-      var pa = a.split("."), pb = b.split(".");
-      return (pa[1] + pa[0]).localeCompare(pb[1] + pb[0]);
-    });
+    var months = sortMonthKeys(Object.keys(byMonth));
     if (!months.length) { chartEmpty(el, "Пока никто не вышел на ИС"); return; }
     var shown = months.slice(-7);
 
@@ -1314,24 +1394,29 @@
     var barW = (groupW - 4) / 2;
     var gap = (w - groupW * shown.length) / (shown.length + 1);
     var usableH = h - padTop - padBottom;
+    var outcome = function (r) {
+      if (r.current_step === "is_completed") return (r.is_probation_extended || r.extended_until) ? "завершён, с продлением" : "✓ успешно, без продления";
+      if (r.is_departed) return "уволен(а)";
+      return "ещё на ИС";
+    };
 
     var marks = shown.map(function (m, i) {
       var b = byMonth[m];
-      var ukPct = b.uk[0] ? Math.round((b.uk[1] / b.uk[0]) * 100) : null;
-      var barsPct = b.bars[0] ? Math.round((b.bars[1] / b.bars[0]) * 100) : null;
+      var ukPct = b.uk.out.length ? Math.round((b.uk.ok / b.uk.out.length) * 100) : null;
+      var barsPct = b.bars.out.length ? Math.round((b.bars.ok / b.bars.out.length) * 100) : null;
       var x = gap + i * (groupW + gap);
       var yBottom = h - padBottom;
       var out = "";
       if (ukPct !== null) {
         var ukH = Math.max((ukPct / 100) * usableH, 2);
-        out += '<rect class="bar-mark" data-label="' + esc(m + " · УК: " + b.uk[1] + "/" + b.uk[0]) + '" data-value="' + ukPct + '%" ' +
+        out += '<rect class="bar-mark" data-list="' + registerList("Вышли на ИС в " + m + " · УК — успешно без продления " + b.uk.ok + " из " + b.uk.out.length, b.uk.out, outcome) + '" data-label="' + esc(m + " · УК: " + b.uk.ok + "/" + b.uk.out.length) + '" data-value="' + ukPct + '%" ' +
           'x="' + x + '" y="' + (yBottom - ukH) + '" width="' + barW + '" height="' + ukH + '" rx="3" fill="var(--accent)"></rect>' +
           '<text class="value-label" x="' + (x + barW / 2) + '" y="' + (yBottom - ukH - 4) + '" text-anchor="middle">' + ukPct + '</text>';
       }
       if (barsPct !== null) {
         var barsH = Math.max((barsPct / 100) * usableH, 2);
         var x2 = x + barW + 4;
-        out += '<rect class="bar-mark" data-label="' + esc(m + " · Бары: " + b.bars[1] + "/" + b.bars[0]) + '" data-value="' + barsPct + '%" ' +
+        out += '<rect class="bar-mark" data-list="' + registerList("Вышли на ИС в " + m + " · Бары — успешно без продления " + b.bars.ok + " из " + b.bars.out.length, b.bars.out, outcome) + '" data-label="' + esc(m + " · Бары: " + b.bars.ok + "/" + b.bars.out.length) + '" data-value="' + barsPct + '%" ' +
           'x="' + x2 + '" y="' + (yBottom - barsH) + '" width="' + barW + '" height="' + barsH + '" rx="3" fill="var(--status-blue)"></rect>' +
           '<text class="value-label" x="' + (x2 + barW / 2) + '" y="' + (yBottom - barsH - 4) + '" text-anchor="middle">' + barsPct + '</text>';
       }
@@ -1340,7 +1425,8 @@
       return out;
     }).join("");
 
-    el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '">' + marks + "</svg>";
+    el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '">' + marks + "</svg>" +
+      '<div class="chart-note">Нажми на столбец — увидишь, кто вышел на ИС в том месяце и чем закончил</div>';
     wireBarTooltips(el, function (mark) {
       return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") };
     });
@@ -1357,15 +1443,12 @@
     var byMonth = {};
     rows.forEach(function (r) {
       if (!r.month_year || r.current_step !== "is_completed") return;
-      byMonth[r.month_year] = (byMonth[r.month_year] || 0) + 1;
+      (byMonth[r.month_year] = byMonth[r.month_year] || []).push(r);
     });
-    var months = Object.keys(byMonth).sort(function (a, b) {
-      var pa = a.split("."), pb = b.split(".");
-      return (pa[1] + pa[0]).localeCompare(pb[1] + pb[0]);
-    });
+    var months = sortMonthKeys(Object.keys(byMonth));
     if (!months.length) { chartEmpty(el, "Пока никто не завершил ИС"); return; }
     var shown = months.slice(-7);
-    var points = shown.map(function (m) { return { m: m, n: byMonth[m], cost: DEPARTMENT_PAYROLL_THOUSANDS / byMonth[m] }; });
+    var points = shown.map(function (m) { return { m: m, rows: byMonth[m], n: byMonth[m].length, cost: DEPARTMENT_PAYROLL_THOUSANDS / byMonth[m].length }; });
     var max = Math.max.apply(null, points.map(function (p) { return p.cost; }));
 
     var w = 300, h = 140, padBottom = 18, padTop = 24, padSide = 22;
@@ -1377,16 +1460,90 @@
     var path = coords.map(function (c, i) { return (i === 0 ? "M" : "L") + c.x.toFixed(1) + "," + c.y.toFixed(1); }).join(" ");
     var marks = coords.map(function (c) {
       var mm = c.p.m.split(".")[0];
-      return '<circle class="bar-mark" data-label="' + esc(c.p.m + ": ЗП " + DEPARTMENT_PAYROLL_THOUSANDS + " / " + c.p.n + " чел.") + '" data-value="' + c.p.cost.toFixed(1) + ' тыс. руб." ' +
-        'cx="' + c.x + '" cy="' + c.y + '" r="3.5" fill="var(--danger)"></circle>' +
-        '<text class="value-label" x="' + c.x + '" y="' + (c.y - 8) + '" text-anchor="middle">' + c.p.cost.toFixed(1) + '</text>' +
+      var key = registerList("Успешно завершили ИС (старт " + c.p.m + ") — " + c.p.n + " чел., расход " + c.p.cost.toFixed(1) + " тыс. руб. на каждого", c.p.rows);
+      return '<circle class="bar-mark" data-list="' + key + '" data-label="' + esc(c.p.m + ": ЗП " + DEPARTMENT_PAYROLL_THOUSANDS + " / " + c.p.n + " чел.") + '" data-value="' + c.p.cost.toFixed(1) + ' тыс. руб." ' +
+        'cx="' + c.x + '" cy="' + c.y + '" r="4.5" fill="var(--danger)"></circle>' +
+        '<text class="value-label" x="' + c.x + '" y="' + (c.y - 9) + '" text-anchor="middle">' + c.p.cost.toFixed(1) + '</text>' +
         '<text class="axis-label" x="' + c.x + '" y="' + (h - 4) + '" text-anchor="middle">' + esc(MONTH_NAMES[mm] || mm) + '</text>';
     }).join("");
 
     el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '">' +
       '<path d="' + path + '" fill="none" stroke="var(--danger)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>' +
       marks + "</svg>" +
-      '<div class="chart-note">ЗП отдела адаптации — временно фиксированные ' + DEPARTMENT_PAYROLL_THOUSANDS + ' тыс. руб./мес, поправим на реальные позже</div>';
+      '<div class="chart-note">ЗП отдела адаптации — временно фиксированные ' + DEPARTMENT_PAYROLL_THOUSANDS + ' тыс. руб./мес, поправим на реальные позже · нажми на точку — список людей</div>';
+    wireBarTooltips(el, function (mark) {
+      return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") };
+    });
+  }
+
+  // Пользователь, 2026-09-24 (ТЗ от Ани Стриги): «каждый месяц считать План и
+  // Факт. План ИС — все, кто должен завершить ИС в отчётном месяце + те, кто
+  // продлён на этот период; Факт — кто реально завершил». План месяца M =
+  // вышедшие на ИС с дедлайном в M + те, у кого «Дата продления» (extended_
+  // until) в M; человек не считается в месяце дважды. Уволенные тоже в
+  // плане — они были в плане.
+  function renderPlanFactChart(rows) {
+    var el = document.getElementById("planFactChart");
+    var plan = {}, fact = {};
+    rows.forEach(function (r) {
+      if (IS_REACHED_STEPS.indexOf(r.current_step) !== -1) {
+        var pk = monthKeyFromISO(r.is_end_date);
+        var xk = monthKeyFromISO(r.extended_until);
+        if (pk) (plan[pk] = plan[pk] || []).push(r);
+        if (xk && xk !== pk) (plan[xk] = plan[xk] || []).push(r);
+      }
+      if (r.current_step === "is_completed") {
+        var fk = monthKeyFromISO(r.completed_at);
+        if (fk) (fact[fk] = fact[fk] || []).push(r);
+      }
+    });
+    // Только до следующего месяца включительно — дальние дедлайны (ноябрь,
+    // декабрь) вытеснили бы из 7 месяцев реальную историю.
+    var now = new Date();
+    var lim = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    var limKey = lim.getFullYear() + String(lim.getMonth() + 1).padStart(2, "0");
+    var all = {};
+    Object.keys(plan).concat(Object.keys(fact)).forEach(function (k) { all[k] = 1; });
+    var months = sortMonthKeys(Object.keys(all)).filter(function (k) {
+      var p = k.split(".");
+      return (p[1] + p[0]) <= limKey;
+    });
+    if (!months.length) { chartEmpty(el, "Пока нет данных по планам/завершениям ИС"); return; }
+    var shown = months.slice(-7);
+
+    var max = 1;
+    shown.forEach(function (m) { max = Math.max(max, (plan[m] || []).length, (fact[m] || []).length); });
+    var w = 300, h = 140, padBottom = 18, padTop = 16;
+    var groupW = Math.min(38, (w / shown.length) - 6);
+    var barW = (groupW - 4) / 2;
+    var gap = (w - groupW * shown.length) / (shown.length + 1);
+    var usableH = h - padTop - padBottom;
+    var yBottom = h - padBottom;
+    var planExtra = function (r) {
+      var extended = r.extended_until ? " · продлён до " + formatDate(r.extended_until) : "";
+      return "дедлайн " + formatDate(r.is_end_date) + extended + (r.current_step === "is_completed" ? " · завершён" : r.is_departed ? " · уволен(а)" : " · ещё на ИС");
+    };
+    var factExtra = function (r) { return "завершён " + formatDate(String(r.completed_at).slice(0, 10)); };
+
+    var marks = shown.map(function (m, i) {
+      var p = plan[m] || [], f = fact[m] || [];
+      var x = gap + i * (groupW + gap);
+      var pH = Math.max((p.length / max) * usableH, p.length ? 2 : 0);
+      var fH = Math.max((f.length / max) * usableH, f.length ? 2 : 0);
+      var tip = m + ": план " + p.length + ", факт " + f.length + (p.length ? " (" + Math.round(f.length / p.length * 100) + "%)" : "");
+      var mm = m.split(".")[0];
+      return '<rect class="bar-mark" data-list="' + registerList("План на " + m + " — дедлайн ИС в этом месяце или продлён на него", p, planExtra) + '" data-label="' + esc(tip) + '" data-value="' + p.length + '" ' +
+        'x="' + x + '" y="' + (yBottom - pH) + '" width="' + barW + '" height="' + pH + '" rx="3" fill="var(--status-blue)"></rect>' +
+        '<text class="value-label" x="' + (x + barW / 2) + '" y="' + (yBottom - pH - 4) + '" text-anchor="middle">' + p.length + '</text>' +
+        '<rect class="bar-mark" data-list="' + registerList("Факт " + m + " — завершили ИС в этом месяце", f, factExtra) + '" data-label="' + esc(tip) + '" data-value="' + f.length + '" ' +
+        'x="' + (x + barW + 4) + '" y="' + (yBottom - fH) + '" width="' + barW + '" height="' + fH + '" rx="3" fill="var(--success)"></rect>' +
+        '<text class="value-label" x="' + (x + barW + 4 + barW / 2) + '" y="' + (yBottom - fH - 4) + '" text-anchor="middle">' + f.length + '</text>' +
+        '<text class="axis-label" x="' + (x + groupW / 2) + '" y="' + (h - 4) + '" text-anchor="middle">' + esc(MONTH_NAMES[mm] || mm) + '</text>';
+    }).join("");
+
+    el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '">' + marks + "</svg>" +
+      '<div class="chart-note">План — вышедшие на ИС с дедлайном в этом месяце; Факт — завершили ИС в этом месяце. ' +
+      'Продлённые входят в план того месяца, на который продлён ИС · нажми на столбец — список людей</div>';
     wireBarTooltips(el, function (mark) {
       return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") };
     });
@@ -1784,28 +1941,26 @@
       if (!r.month_year) return;
       var days = tenureDaysFor(r, today);
       if (days === null || days < 60) return;
-      byMonth[r.month_year] = (byMonth[r.month_year] || 0) + 1;
+      (byMonth[r.month_year] = byMonth[r.month_year] || []).push(r);
     });
-    var months = Object.keys(byMonth).sort(function (a, b) {
-      var pa = a.split("."), pb = b.split(".");
-      return (pa[1] + pa[0]).localeCompare(pb[1] + pb[0]);
-    });
+    var months = sortMonthKeys(Object.keys(byMonth));
     if (!months.length) { chartEmpty(el, "Пока никто не дошёл до 60 дней"); return; }
 
     var shown = months.slice(-10);
-    var max = Math.max.apply(null, shown.map(function (m) { return byMonth[m]; }));
+    var max = Math.max.apply(null, shown.map(function (m) { return byMonth[m].length; }));
 
     var w = 300, h = 130, padBottom = 18, padTop = 16;
     var bw = Math.min(24, (w / shown.length) - 8);
     var gap = (w - bw * shown.length) / (shown.length + 1);
+    var extra = function (r) { var d = tenureDaysFor(r, today); return d !== null ? d + " дн. стажа" : ""; };
 
     var bars = shown.map(function (m, i) {
-      var n = byMonth[m];
+      var n = byMonth[m].length;
       var barH = max ? (n / max) * (h - padTop - padBottom) : 0;
       var x = gap + i * (bw + gap);
       var y = h - padBottom - barH;
       var mm = m.split(".")[0];
-      return '<rect class="bar-mark" data-label="' + esc(m) + '" data-value="' + n + '" ' +
+      return '<rect class="bar-mark" data-list="' + registerList("Дошли до 60 дней (старт " + m + ")", byMonth[m], extra) + '" data-label="' + esc(m) + '" data-value="' + n + '" ' +
         'x="' + x + '" y="' + y + '" width="' + bw + '" height="' + Math.max(barH, 2) + '" rx="4" fill="var(--success)"></rect>' +
         '<text class="value-label" x="' + (x + bw / 2) + '" y="' + (y - 5) + '" text-anchor="middle">' + n + '</text>' +
         '<text class="axis-label" x="' + (x + bw / 2) + '" y="' + (h - 4) + '" text-anchor="middle">' + esc(MONTH_NAMES[mm] || mm) + '</text>';
@@ -1814,7 +1969,7 @@
     el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '">' + bars + "</svg>" +
       '<div class="chart-note">Сколько человек из стартовавших в этом месяце дошли до 60 дней стажа · ' +
       'реальные дни — где есть данные из листа, для остальных — расчёт по дате старта · ' +
-      'последние месяцы могут быть занижены — 60 дней с их старта ещё не прошло.</div>';
+      'последние месяцы могут быть занижены — 60 дней с их старта ещё не прошло · нажми на столбец — список людей.</div>';
     wireBarTooltips(el, function (mark) {
       return { value: mark.getAttribute("data-value"), label: mark.getAttribute("data-label") };
     });
@@ -2108,6 +2263,42 @@
     var el = document.getElementById(id);
     el.addEventListener(id === "search" ? "input" : "change", render);
   });
+  // Клик по столбцу/точке графика (data-list) — список людей; клик по
+  // человеку в списке — его карточка.
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest ? e.target.closest("[data-list]") : null;
+    if (!t) return;
+    var entry = chartLists[t.getAttribute("data-list")];
+    if (!entry) return;
+    if (entry.direct && entry.rows.length === 1) openCandidateModal(entry.rows[0]);
+    else openListModal(entry);
+  });
+  document.getElementById("modalCard").addEventListener("click", function (e) {
+    var row = e.target.closest ? e.target.closest(".list-row") : null;
+    if (!row) return;
+    var target = allRows[Number(row.getAttribute("data-row-idx"))];
+    if (target) openCandidateModal(target);
+  });
+
+  // Пользователь, 2026-09-24: два листа — «Основное» и «Метрики отдела
+  // адаптации».
+  function setView(view) {
+    document.getElementById("viewMain").hidden = view !== "main";
+    document.getElementById("viewInternal").hidden = view !== "internal";
+    document.querySelectorAll(".view-tab").forEach(function (b) {
+      var on = b.getAttribute("data-view") === view;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    try { localStorage.setItem("dashboard_view", view); } catch (err) { /* private mode */ }
+  }
+  document.querySelectorAll(".view-tab").forEach(function (b) {
+    b.addEventListener("click", function () { setView(b.getAttribute("data-view")); });
+  });
+  var savedView = null;
+  try { savedView = localStorage.getItem("dashboard_view"); } catch (err) { /* private mode */ }
+  setView(savedView === "internal" ? "internal" : "main");
+
   document.getElementById("clearFiltersBtn").addEventListener("click", function () {
     document.getElementById("search").value = "";
     document.getElementById("monthFilter").value = "";
