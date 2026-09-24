@@ -390,6 +390,34 @@
   .mgr-table .mgr-link { cursor: pointer; border-bottom: 1px dashed var(--text-faint); }
   .mgr-table .mgr-link:hover { color: var(--accent-strong); border-color: var(--accent); }
   .mgr-table .bad { color: color-mix(in srgb, var(--danger) 70%, var(--text-muted)); font-weight: 700; }
+  /* Таблица ИС (ТЗ Ани Стриги, 2026-09-24) — замена ручной таблицы в Google-листе */
+  .is-table-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.7rem; }
+  .is-table-bar .count { font-size: 0.78rem; color: var(--text-muted); }
+  .is-table-wrap { max-height: 72vh; overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
+  .is-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.78rem; min-width: 1100px; }
+  .is-table th, .is-table td { padding: 0.45rem 0.55rem; border-bottom: 1px solid var(--border); text-align: right; vertical-align: middle; }
+  .is-table th:nth-child(-n+3), .is-table td:nth-child(-n+3) { text-align: left; }
+  .is-table thead th { position: sticky; background: var(--surface); z-index: 2; }
+  .is-table tr.labels th {
+    top: 0; height: 46px; cursor: pointer; user-select: none; font-family: var(--font-display); font-size: 0.62rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-faint); line-height: 1.2;
+  }
+  .is-table tr.labels th:hover { color: var(--accent-strong); }
+  .is-table tr.filters th { top: 46px; padding: 0.3rem 0.4rem; font-weight: 400; }
+  .is-table tr.filters input, .is-table tr.filters select {
+    width: 100%; font: inherit; font-size: 0.72rem; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--surface-alt); color: var(--text);
+  }
+  .is-table tbody tr { cursor: pointer; }
+  .is-table tbody tr:hover td { background: var(--surface-alt); }
+  .is-table td { font-variant-numeric: tabular-nums; }
+  .is-table td.name { font-family: var(--font-display); font-weight: 700; }
+  .is-table td .muted { color: var(--text-faint); }
+  .is-table td.late { color: var(--danger); font-weight: 700; }
+  .is-table td.soon { color: var(--warning); font-weight: 700; }
+  .is-table td.bad-cell { background: var(--danger-soft); color: var(--danger); font-weight: 700; }
+  .is-table td.good-cell { background: var(--success-soft); color: var(--success); font-weight: 700; }
+  .is-table tfoot td { position: sticky; bottom: 0; background: var(--surface-alt); font-weight: 800; border-top: 2px solid var(--border); border-bottom: none; z-index: 2; }
   .list-empty { padding: 1.2rem 1.4rem; font-size: 0.85rem; color: var(--text-faint); }
   .chart-legend { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; margin-top: 0.6rem; font-size: 0.72rem; color: var(--text-muted); }
   .bar-mark { transition: filter 0.12s ease; }
@@ -844,6 +872,18 @@
     </section>
 
     <section class="fade-in d2">
+      <h2>Таблица ИС</h2>
+      <div class="chart-card">
+        <div class="is-table-bar">
+          <span class="count" id="isTableCount"></span>
+          <button class="toolbar-link" id="isTableCsv" type="button">⬇ Скачать CSV (с учётом фильтров)</button>
+        </div>
+        <div class="is-table-wrap" id="isTable"></div>
+        <div class="chart-note">Фильтры по столбцам независимы от верхней панели · итоги внизу пересчитываются под фильтры · нажми на заголовок — сортировка, на строку — карточка. Дедлайн: у продлённых считается от даты продления, у завершивших и уволенных не считается.</div>
+      </div>
+    </section>
+
+    <section class="fade-in d2">
       <h2>План недели</h2>
       <div class="chart-card">
         <div class="chart-title">Кто завершает ИС в ближайшие 7 дней <small id="weekPlanRange"></small></div>
@@ -1185,6 +1225,7 @@
     renderSpeedStats(rows);
     renderWeekPlan(allRows);
     renderAttention(allRows);
+    initIsTable(allRows);
     renderManagerTable(rows);
     renderEvalAntirating(rows);
     // Пользователь, 2026-09-24: «по умолчанию не показывались уволенные и
@@ -1711,6 +1752,183 @@
     if (!document.getElementById("viewInternal").hidden) p.set("view", "internal");
     var qs = p.toString();
     history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + location.hash);
+  }
+
+  // Пользователь, 2026-09-24 (ТЗ Ани Стриги): таблица ИС на листе метрик
+  // отдела адаптации — вместо ручной таблицы в Google-листе. Все сотрудники
+  // (в том числе завершившие и уволенные), свои фильтры по каждому
+  // столбцу (независимы от верхней панели), итоги по задачам внизу.
+  var IS_TABLE_COLS = [
+    { k: "src", label: "УК / БАР", type: "src" },
+    { k: "name", label: "Сотрудник", type: "text" },
+    { k: "pos", label: "Должность", type: "text" },
+    { k: "plan", label: "План ИС", tip: "по офферу", type: "date" },
+    { k: "dl", label: "Дедлайн, дн.", tip: "дата завершения ИС (у продлённых — дата продления) минус сегодня", type: "dl" },
+    { k: "ext", label: "Дата продления", type: "date" },
+    { k: "done", label: "Дата завершения ИС", type: "date" },
+    { k: "total", label: "Задач всего", type: "num" },
+    { k: "remaining", label: "Осталось незащищённых", type: "num" },
+    { k: "admitted", label: "Допущен к защите", type: "num" },
+    { k: "overdue", label: "Просрочено", type: "num" },
+    { k: "defended", label: "Всего принято (защищены)", type: "num" },
+  ];
+  var isTable = { built: null, rows: [], filters: {}, sort: { key: "dl", dir: 1 }, view: [] };
+
+  function buildIsTableRows(rows) {
+    var today = todayISO();
+    return rows.map(function (r) {
+      var live = !r.is_departed && r.current_step !== "is_completed";
+      var deadline = live ? effectiveDeadline(r) : null;
+      return {
+        r: r, src: r.source_sheet === "bars" ? "БАР" : "УК", name: r.full_name, pos: r.position || "",
+        plan: r.is_end_date || null, dl: deadline ? daysBetweenISO(today, deadline) : null,
+        ext: r.extended_until || null,
+        done: r.current_step === "is_completed" && r.completed_at ? String(r.completed_at).slice(0, 10) : null,
+        total: r.tasks_total || 0, remaining: r.tasks_remaining || 0, admitted: r.admitted_to_defense || 0,
+        overdue: r.overdue_tasks_count || 0, defended: r.defended || 0,
+      };
+    });
+  }
+
+  function isTablePass(x) {
+    var f = isTable.filters;
+    for (var i = 0; i < IS_TABLE_COLS.length; i++) {
+      var c = IS_TABLE_COLS[i], v = f[c.k];
+      if (!v) continue;
+      var val = x[c.k];
+      if (c.type === "src") { if (x.src !== v) return false; }
+      else if (c.type === "text") { if (String(val).toLowerCase().indexOf(v.toLowerCase()) === -1) return false; }
+      else if (c.type === "date") {
+        if (v === "__empty") { if (val) return false; }
+        else if (v === "__filled") { if (!val) return false; }
+        else if (monthKeyFromISO(val) !== v) return false;
+      } else if (c.type === "dl") {
+        if (v === "none") { if (val !== null) return false; }
+        else if (val === null) return false;
+        else if (v === "late" && !(val < 0)) return false;
+        else if (v === "week" && !(val >= 0 && val <= 7)) return false;
+        else if (v === "month" && !(val > 7 && val <= 30)) return false;
+        else if (v === "far" && !(val > 30)) return false;
+      } else if (c.type === "num") {
+        if (v === "0" && val !== 0) return false;
+        if (v === "pos" && !(val > 0)) return false;
+      }
+    }
+    return true;
+  }
+
+  function fmtIsCell(c, x) {
+    var v = x[c.k];
+    if (c.type === "date") return v ? formatDate(v) : "";
+    if (c.k === "dl") return v === null ? "" : String(v);
+    return esc(String(v));
+  }
+
+  function updateIsTable() {
+    var key = isTable.sort.key, dir = isTable.sort.dir;
+    var view = isTable.rows.filter(isTablePass);
+    view.sort(function (a, b) {
+      var x = a[key], y = b[key];
+      if (x === null || x === "" || x === undefined) { if (y === null || y === "" || y === undefined) return a.name.localeCompare(b.name, "ru"); return 1; }
+      if (y === null || y === "" || y === undefined) return -1;
+      var cmp = typeof x === "number" ? x - y : String(x).localeCompare(String(y), "ru");
+      return dir * cmp || a.name.localeCompare(b.name, "ru");
+    });
+    isTable.view = view;
+    var body = view.map(function (x) {
+      var tds = IS_TABLE_COLS.map(function (c) {
+        var cls = "";
+        if (c.k === "name") cls = "name";
+        else if (c.k === "dl" && x.dl !== null) cls = x.dl < 0 ? "late" : x.dl <= 7 ? "soon" : "";
+        else if (c.k === "overdue" && x.overdue > 0) cls = "bad-cell";
+        else if (c.k === "admitted" && x.admitted > 0) cls = "good-cell";
+        var text = c.type === "text" || c.k === "src" ? esc(x[c.k]) : fmtIsCell(c, x);
+        return '<td' + (cls ? ' class="' + cls + '"' : "") + ">" + text + "</td>";
+      }).join("");
+      return '<tr data-row-idx="' + allRows.indexOf(x.r) + '">' + tds + "</tr>";
+    }).join("");
+    var sum = function (k) { return view.reduce(function (s, x) { return s + x[k]; }, 0); };
+    var foot = "<tr><td colspan=\"7\">Итого · " + view.length + " чел.</td>" +
+      ["total", "remaining", "admitted", "overdue", "defended"].map(function (k) { return "<td>" + sum(k) + "</td>"; }).join("") + "</tr>";
+    var tbl = document.getElementById("isTable");
+    tbl.querySelector("tbody").innerHTML = body || '<tr><td colspan="12" class="muted" style="text-align:center;padding:1.2rem">Никого не нашлось по этим фильтрам.</td></tr>';
+    tbl.querySelector("tfoot").innerHTML = foot;
+    document.getElementById("isTableCount").textContent = "Показано " + view.length + " из " + isTable.rows.length;
+    tbl.querySelectorAll("tr.labels th").forEach(function (th) {
+      var c = IS_TABLE_COLS[Number(th.getAttribute("data-i"))];
+      th.innerHTML = esc(c.label) + (isTable.sort.key === c.k ? (isTable.sort.dir === 1 ? " ▲" : " ▼") : "");
+    });
+  }
+
+  function initIsTable(rows) {
+    if (isTable.built === rows) return;
+    isTable.built = rows;
+    isTable.rows = buildIsTableRows(rows);
+    isTable.filters = {};
+    var monthsOf = function (k) {
+      var set = {};
+      isTable.rows.forEach(function (x) { var m = monthKeyFromISO(x[k]); if (m) set[m] = 1; });
+      return sortMonthKeys(Object.keys(set));
+    };
+    var opt = function (v, t) { return '<option value="' + v + '">' + t + "</option>"; };
+    var filterCell = function (c) {
+      var d = ' data-f="' + c.k + '"';
+      if (c.type === "src") return "<select" + d + ">" + opt("", "Все") + opt("УК", "УК") + opt("БАР", "БАР") + "</select>";
+      if (c.type === "text") return '<input type="search"' + d + ' placeholder="фильтр">';
+      if (c.type === "date") {
+        return "<select" + d + ">" + opt("", "Все") + opt("__filled", "заполнено") + opt("__empty", "пусто") +
+          monthsOf(c.k).map(function (m) { return opt(m, m); }).join("") + "</select>";
+      }
+      if (c.type === "dl") {
+        return "<select" + d + ">" + opt("", "Все") + opt("late", "просрочен (&lt; 0)") + opt("week", "0–7 дней") + opt("month", "8–30 дней") + opt("far", "&gt; 30 дней") + opt("none", "нет срока") + "</select>";
+      }
+      return "<select" + d + ">" + opt("", "Все") + opt("0", "0") + opt("pos", "&gt; 0") + "</select>";
+    };
+    document.getElementById("isTable").innerHTML =
+      '<table class="is-table"><thead><tr class="labels">' +
+      IS_TABLE_COLS.map(function (c, i) { return '<th data-i="' + i + '" title="' + esc(c.tip || c.label) + '">' + esc(c.label) + "</th>"; }).join("") +
+      '</tr><tr class="filters">' + IS_TABLE_COLS.map(function (c) { return "<th>" + filterCell(c) + "</th>"; }).join("") +
+      "</tr></thead><tbody></tbody><tfoot></tfoot></table>";
+    var tbl = document.getElementById("isTable");
+    tbl.querySelectorAll("[data-f]").forEach(function (el) {
+      el.addEventListener(el.tagName === "INPUT" ? "input" : "change", function () {
+        isTable.filters[el.getAttribute("data-f")] = el.value.trim();
+        updateIsTable();
+      });
+    });
+    tbl.querySelectorAll("tr.labels th").forEach(function (th) {
+      th.addEventListener("click", function () {
+        var c = IS_TABLE_COLS[Number(th.getAttribute("data-i"))];
+        isTable.sort = { key: c.k, dir: isTable.sort.key === c.k ? -isTable.sort.dir : (c.type === "num" ? -1 : 1) };
+        updateIsTable();
+      });
+    });
+    tbl.querySelector("tbody").addEventListener("click", function (e) {
+      var tr = e.target.closest ? e.target.closest("tr[data-row-idx]") : null;
+      if (tr) openCandidateModal(allRows[Number(tr.getAttribute("data-row-idx"))]);
+    });
+    updateIsTable();
+  }
+
+  function downloadIsTableCsv() {
+    var q = function (v) { return '"' + String(v === null || v === undefined ? "" : v).replace(/"/g, '""') + '"'; };
+    var head = IS_TABLE_COLS.map(function (c) { return q(c.label); }).join(";");
+    var lines = isTable.view.map(function (x) {
+      return IS_TABLE_COLS.map(function (c) {
+        var v = x[c.k];
+        return q(c.type === "date" ? (v ? formatDate(v) : "") : v);
+      }).join(";");
+    });
+    var sum = function (k) { return isTable.view.reduce(function (s, x) { return s + x[k]; }, 0); };
+    lines.push(["Итого", isTable.view.length + " чел.", "", "", "", "", ""].map(q).concat(["total", "remaining", "admitted", "overdue", "defended"].map(function (k) { return q(sum(k)); })).join(";"));
+    var blob = new Blob(["﻿" + head + "\n" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "tablica-is-" + todayISO() + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   }
 
   function chartEmpty(el, text) { el.innerHTML = '<div class="chart-empty">' + esc(text) + "</div>"; }
@@ -2752,6 +2970,7 @@
   try { savedView = localStorage.getItem("dashboard_view"); } catch (err) { /* private mode */ }
   setView(savedView === "internal" ? "internal" : "main");
 
+  document.getElementById("isTableCsv").addEventListener("click", downloadIsTableCsv);
   document.getElementById("copyLinkBtn").addEventListener("click", function () {
     var btn = document.getElementById("copyLinkBtn");
     if (!navigator.clipboard) { window.prompt("Скопируй ссылку:", location.href); return; }
