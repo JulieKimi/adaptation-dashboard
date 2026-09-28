@@ -1705,7 +1705,7 @@
       var r = x.r, barW = (x.m / 5) * (w - 70), y = i * rowH;
       var shortName = r.full_name.length > 16 ? r.full_name.slice(0, 15) + "…" : r.full_name;
       var key = registerList(r.full_name, [r], null, true);
-      var tip = r.full_name + ": Алёна " + f(r.eval_alena_avg) + " · рук. " + f(r.eval_manager_avg) + " · Аня " + f(r.eval_anya_avg);
+      var tip = r.full_name + ": Культ " + f(r.eval_alena_avg) + " · Рук " + f(r.eval_manager_avg) + " · РАиО " + f(r.eval_anya_avg);
       return '<text class="axis-label" data-list="' + key + '" x="0" y="' + (y + rowH / 2 + 3) + '" text-anchor="start">' + esc(shortName) + "</text>" +
         '<rect class="bar-mark" data-list="' + key + '" data-label="' + esc(tip) + '" data-value="' + x.m.toFixed(1) + '" x="88" y="' + (y + 4) + '" width="' + Math.max(barW, 3) + '" height="' + (rowH - 10) + '" rx="4" fill="' + (x.m < 3 ? "var(--danger)" : "var(--status-yellow)") + '"></rect>' +
         '<text class="value-label" x="' + (88 + barW + 6) + '" y="' + (y + rowH / 2 + 3) + '" text-anchor="start">' + x.m.toFixed(1) + "</text>";
@@ -2423,7 +2423,7 @@
       // Аня) — среднее из уже отвеченных критериев, "—" = опрос ещё не
       // начат/не отвечен, не 0. Занимают бывшую колонку риска.
       var evalsHtml = '<div class="candidate-evals">' +
-        [["Ал", r.eval_alena_avg], ["Рук", r.eval_manager_avg], ["Аня", r.eval_anya_avg]].map(function (pair) {
+        [["Культ", r.eval_alena_avg], ["Рук", r.eval_manager_avg], ["РАиО", r.eval_anya_avg]].map(function (pair) {
           var who = pair[0], avg = pair[1];
           var ring = avg == null
             ? '<div class="ring pending">—</div>'
@@ -2765,7 +2765,7 @@
 
   // Пользователь, 2026-09-24: разбивка оценок по критериям для карточки
   // по клику — тот же порядок, что и у кружков в строке списка.
-  var EVALUATOR_LABEL = { alena: "Алёна", manager: "Руководитель", anya: "Аня" };
+  var EVALUATOR_LABEL = { alena: "Культ", manager: "Рук", anya: "РАиО" };
   function renderModalEvaluations(row) {
     if (!row.evaluations || !row.evaluations.length) {
       return '<div class="modal-tasks-empty">Оценок пока нет.</div>';
