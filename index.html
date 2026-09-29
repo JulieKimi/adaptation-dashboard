@@ -1157,10 +1157,27 @@
     monthSel.innerHTML = '<option value="">Все месяцы</option>' +
       months.map(function (m) { return '<option value="' + m + '">' + m + '</option>'; }).join("");
 
-    var steps = Array.from(new Set(rows.map(function (r) { return r.current_step; }).filter(Boolean)));
+    // Пользователь, 2026-09-29 (реальный случай, Аня Стрига): список
+    // "Все статусы" раньше строился из СЫРЫХ current_step — конкретные
+    // подшаги пребординга ("5/6 · Учётка Б24 создана" и т.п.) вместо
+    // понятных категорий, а "Уволен(а)" вообще не появлялся (is_departed —
+    // отдельный флаг, не значение current_step). Те же 4 категории, что и
+    // остальной дашборд (см. statusBucket, candidateRiskInfo).
     var statusSel = document.getElementById("statusFilter");
     statusSel.innerHTML = '<option value="">Все статусы</option>' +
-      steps.map(function (s) { return '<option value="' + s + '">' + stepLabel(s)[0] + '</option>'; }).join("");
+      '<option value="preboarding">Пребординг</option>' +
+      '<option value="is">ИС</option>' +
+      '<option value="done">ИС пройден</option>' +
+      '<option value="departed">Уволен(а)</option>';
+  }
+
+  // Пользователь, 2026-09-29: та же группировка, что и полоса слева
+  // (candidateCategory) и колонка риска (candidateRiskInfo) — один язык
+  // статусов везде на дашборде, вместо сырых current_step в фильтре.
+  function statusBucket(r) {
+    if (r.is_departed) return "departed";
+    if (r.current_step === "is_completed") return "done";
+    return isPreboardingDone(r.current_step) ? "is" : "preboarding";
   }
 
   function filteredRows() {
@@ -1171,7 +1188,7 @@
     var sortBy = document.getElementById("sortBy").value;
     var rows = allRows.filter(function (r) {
       if (month && r.month_year !== month) return false;
-      if (status && r.current_step !== status) return false;
+      if (status && statusBucket(r) !== status) return false;
       if (source && r.source_sheet !== source) return false;
       if (q) {
         var hay = (r.full_name + " " + r.manager_full_name + " " + r.mentor_full_name + " " + r.object_name + " " + r.position).toLowerCase();
@@ -1232,11 +1249,11 @@
     // завершившие ИС» — только для списка карточек: воронка/графики выше
     // намеренно считают по ВСЕМ (включая ушедших) — это их смысл
     // («сколько прошло», «сколько закрепилось»), список карточек — про
-    // тех, с кем нужно работать прямо сейчас. Явный выбор «ИС пройден» в
-    // статус-фильтре — уже осознанный запрос именно этих людей, чекбокс
-    // не должен молча стирать то, что человек только что сам выбрал.
+    // тех, с кем нужно работать прямо сейчас. Явный выбор «ИС пройден»/
+    // «Уволен(а)» в статус-фильтре — уже осознанный запрос именно этих
+    // людей, чекбокс не должен молча стирать то, что человек сам выбрал.
     var statusFilterValue = document.getElementById("statusFilter").value;
-    var showArchived = document.getElementById("showArchived").checked || statusFilterValue === "is_completed";
+    var showArchived = document.getElementById("showArchived").checked || statusFilterValue === "done" || statusFilterValue === "departed";
     renderCards(showArchived ? rows : rows.filter(function (r) { return !isArchivedRow(r); }));
     renderRetentionStats(allRows);
     syncURL();
