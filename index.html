@@ -244,7 +244,9 @@
   .stat-card.warn .value { color: var(--danger); }
 
   /* ---------- toolbar ---------- */
-  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; }
+  /* position+z-index: выпадающее окно «Должность» должно лежать поверх
+     секций ниже (у каждой своя анимация появления = свой слой). */
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; position: relative; z-index: 30; }
   .toolbar input[type="search"], .toolbar select {
     font: inherit; font-size: 13.5px; padding: 8px 12px; border-radius: 999px;
     border: 1px solid var(--border); background: var(--surface-alt); color: var(--text);
@@ -252,7 +254,33 @@
   }
   .toolbar input[type="search"] { flex: 1 1 220px; min-width: 180px; background: var(--surface); border-radius: 9px; }
   .toolbar select:hover { background: var(--border); }
-  .toolbar select.active { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); font-weight: 600; }
+  .toolbar select.active, .multi-btn.active { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); font-weight: 600; }
+  /* Мультивыбор «Должность» (Пользователь, 2026-10-15: «выбрать несколько
+     в фильтре») — кнопка как у select + окно с поиском и чекбоксами. */
+  .multi { position: relative; }
+  .multi-btn {
+    font: inherit; font-size: 13.5px; padding: 8px 30px 8px 12px; border-radius: 999px; max-width: 260px;
+    border: 1px solid var(--border); background: var(--surface-alt); color: var(--text); cursor: pointer;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; position: relative;
+    transition: border-color 0.12s ease, background 0.12s ease;
+  }
+  .multi-btn::after { content: "▾"; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 11px; opacity: 0.6; }
+  .multi-btn:hover { background: var(--border); }
+  .multi-btn.active:hover { background: var(--accent-soft); }
+  .multi-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .multi-pop {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; width: 340px; max-width: 92vw;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg); padding: 0.6rem;
+  }
+  .multi-pop[hidden] { display: none; }
+  .multi-pop input[type="search"] { width: 100%; margin-bottom: 0.5rem; border-radius: 8px; }
+  .multi-list { max-height: 280px; overflow-y: auto; }
+  .multi-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.32rem 0.4rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
+  .multi-item:hover { background: var(--surface-alt); }
+  .multi-item input { accent-color: var(--accent); cursor: pointer; flex: none; }
+  .multi-item .cnt { margin-left: auto; color: var(--text-faint); font-size: 0.72rem; flex: none; }
+  .multi-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; font-size: 0.74rem; color: var(--text-faint); }
+  .multi-foot button { font: inherit; font-size: 0.76rem; color: var(--accent-strong); background: none; border: 0; cursor: pointer; padding: 0; }
   .toolbar .spacer { flex: 1; }
   /* Пользователь, 2026-09-24: «по умолчанию не показывались завершенные
      ИС и уволенные» — карточка списка по умолчанию их прячет, этот
@@ -780,7 +808,14 @@
         <option value="uk">Только УК</option>
         <option value="bars">Только Бары</option>
       </select>
-      <select id="positionFilter"><option value="">Все должности</option></select>
+      <div class="multi" id="positionFilter">
+        <button type="button" class="multi-btn" id="positionBtn" aria-haspopup="listbox" aria-expanded="false">Все должности</button>
+        <div class="multi-pop" id="positionPop" hidden>
+          <input type="search" id="positionSearch" placeholder="Найти должность…">
+          <div class="multi-list" id="positionList" role="listbox" aria-multiselectable="true"></div>
+          <div class="multi-foot"><span id="positionHint"></span><button type="button" id="positionReset">Сбросить</button></div>
+        </div>
+      </div>
       <select id="sortBy">
         <option value="overdue_desc">Сортировка: сначала просроченные</option>
         <option value="name_asc">По имени</option>
@@ -1150,6 +1185,47 @@
 
   function positionKey(pos) { return String(pos || "").trim().toLowerCase(); }
 
+  // Мультивыбор должностей: выбранные ключи (positionKey) -> true.
+  var positionOptions = [];
+  var positionSelected = {};
+  function selectedPositionKeys() { return Object.keys(positionSelected); }
+  function updatePositionBtn() {
+    var keys = selectedPositionKeys();
+    var btn = document.getElementById("positionBtn");
+    var label = "Все должности";
+    if (keys.length === 1) {
+      var o = positionOptions.filter(function (x) { return x.k === keys[0]; })[0];
+      label = o ? o.label : keys[0];
+    } else if (keys.length > 1) {
+      label = "Должности: " + keys.length;
+    }
+    btn.textContent = label;
+    btn.classList.toggle("active", keys.length > 0);
+    document.getElementById("positionHint").textContent = keys.length ? "Выбрано: " + keys.length : "Можно выбрать несколько";
+  }
+  function renderPositionList() {
+    var q = document.getElementById("positionSearch").value.trim().toLowerCase();
+    var html = positionOptions.filter(function (o) { return !q || o.label.toLowerCase().indexOf(q) !== -1; }).map(function (o) {
+      return '<label class="multi-item" role="option"><input type="checkbox" data-k="' + esc(o.k) + '"' + (positionSelected[o.k] ? " checked" : "") + '>' +
+        '<span>' + esc(o.label) + '</span><span class="cnt">' + o.n + '</span></label>';
+    }).join("");
+    document.getElementById("positionList").innerHTML = html || '<div class="list-empty" style="padding:0.6rem">Ничего не найдено.</div>';
+  }
+  function setPositionPopOpen(open) {
+    var pop = document.getElementById("positionPop");
+    var btn = document.getElementById("positionBtn");
+    pop.hidden = !open;
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) {
+      // Кнопка у правого края — окно прижимаем к правому краю кнопки,
+      // иначе оно уезжает за экран.
+      var fitsRight = btn.getBoundingClientRect().left + pop.offsetWidth <= window.innerWidth - 8;
+      pop.style.left = fitsRight ? "0" : "auto";
+      pop.style.right = fitsRight ? "auto" : "0";
+      document.getElementById("positionSearch").focus();
+    }
+  }
+
   function populateFilters(rows) {
     var months = Array.from(new Set(rows.map(function (r) { return r.month_year; }).filter(Boolean)));
     months.sort(function (a, b) {
@@ -1178,14 +1254,13 @@
       g.n++;
       g.spellings[pos] = (g.spellings[pos] || 0) + 1;
     });
-    document.getElementById("positionFilter").innerHTML = '<option value="">Все должности</option>' +
-      Object.keys(positionGroups).map(function (k) {
-        var g = positionGroups[k];
-        var label = Object.keys(g.spellings).sort(function (a, b) { return g.spellings[b] - g.spellings[a]; })[0];
-        return { k: k, label: label, n: g.n };
-      }).sort(function (a, b) { return a.label.localeCompare(b.label, "ru"); }).map(function (o) {
-        return '<option value="' + esc(o.k) + '">' + esc(o.label) + " (" + o.n + ")</option>";
-      }).join("");
+    positionOptions = Object.keys(positionGroups).map(function (k) {
+      var g = positionGroups[k];
+      var label = Object.keys(g.spellings).sort(function (a, b) { return g.spellings[b] - g.spellings[a]; })[0];
+      return { k: k, label: label, n: g.n };
+    }).sort(function (a, b) { return a.label.localeCompare(b.label, "ru"); });
+    renderPositionList();
+    updatePositionBtn();
     var statusSel = document.getElementById("statusFilter");
     statusSel.innerHTML = '<option value="">Все статусы</option>' +
       '<option value="preboarding">Пребординг</option>' +
@@ -1208,13 +1283,13 @@
     var month = document.getElementById("monthFilter").value;
     var status = document.getElementById("statusFilter").value;
     var source = document.getElementById("sourceFilter").value;
-    var position = document.getElementById("positionFilter").value;
+    var positionKeys = selectedPositionKeys();
     var sortBy = document.getElementById("sortBy").value;
     var rows = allRows.filter(function (r) {
       if (month && r.month_year !== month) return false;
       if (status && statusBucket(r) !== status) return false;
       if (source && r.source_sheet !== source) return false;
-      if (position && positionKey(r.position) !== position) return false;
+      if (positionKeys.length && !positionSelected[positionKey(r.position)]) return false;
       if (q) {
         var hay = (r.full_name + " " + r.manager_full_name + " " + r.mentor_full_name + " " + r.object_name + " " + r.position).toLowerCase();
         if (hay.indexOf(q) === -1) return false;
@@ -1345,9 +1420,9 @@
     var month = document.getElementById("monthFilter").value;
     var status = document.getElementById("statusFilter").value;
     var source = document.getElementById("sourceFilter").value;
-    var position = document.getElementById("positionFilter").value;
+    var positionActive = selectedPositionKeys().length > 0;
     var showArchived = document.getElementById("showArchived").checked;
-    var active = [search, month, status, source, position].filter(Boolean).length + (showArchived ? 1 : 0);
+    var active = [search, month, status, source].filter(Boolean).length + (positionActive ? 1 : 0) + (showArchived ? 1 : 0);
     var countEl = document.getElementById("filterCount");
     var clearBtn = document.getElementById("clearFiltersBtn");
     countEl.style.display = active ? "inline-flex" : "none";
@@ -1356,7 +1431,6 @@
     document.getElementById("monthFilter").classList.toggle("active", !!month);
     document.getElementById("statusFilter").classList.toggle("active", !!status);
     document.getElementById("sourceFilter").classList.toggle("active", !!source);
-    document.getElementById("positionFilter").classList.toggle("active", !!position);
   }
 
   // Воронка — три реальных этапа из БД адаптация-бота. «Новые офферы»
@@ -1777,7 +1851,11 @@
     setSel("monthFilter", p.get("month"));
     setSel("statusFilter", p.get("status"));
     setSel("sourceFilter", p.get("source"));
-    setSel("positionFilter", p.get("position"));
+    p.getAll("position").forEach(function (k) {
+      if (positionOptions.some(function (o) { return o.k === k; })) positionSelected[k] = true;
+    });
+    renderPositionList();
+    updatePositionBtn();
     setSel("sortBy", p.get("sort"));
     if (p.get("arch") === "1") document.getElementById("showArchived").checked = true;
     if (p.get("view") === "internal" || p.get("view") === "main") setView(p.get("view"));
@@ -1787,10 +1865,11 @@
     var p = new URLSearchParams();
     var q = document.getElementById("search").value.trim();
     if (q) p.set("q", q);
-    [["monthFilter", "month"], ["statusFilter", "status"], ["sourceFilter", "source"], ["positionFilter", "position"]].forEach(function (pair) {
+    [["monthFilter", "month"], ["statusFilter", "status"], ["sourceFilter", "source"]].forEach(function (pair) {
       var v = document.getElementById(pair[0]).value;
       if (v) p.set(pair[1], v);
     });
+    selectedPositionKeys().forEach(function (k) { p.append("position", k); });
     var sort = document.getElementById("sortBy").value;
     if (sort && sort !== "overdue_desc") p.set("sort", sort);
     if (document.getElementById("showArchived").checked) p.set("arch", "1");
@@ -2969,7 +3048,7 @@
   updateThemeToggleButton();
 
   // ---- wiring ------------------------------------------------------------
-  ["search", "monthFilter", "statusFilter", "sourceFilter", "positionFilter", "sortBy", "showArchived"].forEach(function (id) {
+  ["search", "monthFilter", "statusFilter", "sourceFilter", "sortBy", "showArchived"].forEach(function (id) {
     var el = document.getElementById(id);
     el.addEventListener(id === "search" ? "input" : "change", render);
   });
@@ -3024,12 +3103,41 @@
       setTimeout(function () { btn.textContent = "🔗 Ссылка на срез"; }, 1500);
     });
   });
+  document.getElementById("positionBtn").addEventListener("click", function () {
+    setPositionPopOpen(document.getElementById("positionPop").hidden);
+  });
+  document.getElementById("positionSearch").addEventListener("input", renderPositionList);
+  document.getElementById("positionList").addEventListener("change", function (e) {
+    var k = e.target.getAttribute("data-k");
+    if (!k) return;
+    if (e.target.checked) positionSelected[k] = true; else delete positionSelected[k];
+    updatePositionBtn();
+    render();
+  });
+  document.getElementById("positionReset").addEventListener("click", function () {
+    positionSelected = {};
+    renderPositionList();
+    updatePositionBtn();
+    render();
+  });
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest("#positionFilter")) setPositionPopOpen(false);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !document.getElementById("positionPop").hidden) {
+      setPositionPopOpen(false);
+      document.getElementById("positionBtn").focus();
+    }
+  });
   document.getElementById("clearFiltersBtn").addEventListener("click", function () {
     document.getElementById("search").value = "";
     document.getElementById("monthFilter").value = "";
     document.getElementById("statusFilter").value = "";
     document.getElementById("sourceFilter").value = "";
-    document.getElementById("positionFilter").value = "";
+    positionSelected = {};
+    document.getElementById("positionSearch").value = "";
+    renderPositionList();
+    updatePositionBtn();
     document.getElementById("showArchived").checked = false;
     render();
   });
