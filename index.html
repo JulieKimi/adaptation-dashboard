@@ -780,6 +780,7 @@
         <option value="uk">Только УК</option>
         <option value="bars">Только Бары</option>
       </select>
+      <select id="positionFilter"><option value="">Все должности</option></select>
       <select id="sortBy">
         <option value="overdue_desc">Сортировка: сначала просроченные</option>
         <option value="name_asc">По имени</option>
@@ -1147,6 +1148,8 @@
     box.textContent = "Не удалось посчитать: " + errors.join("; ");
   }
 
+  function positionKey(pos) { return String(pos || "").trim().toLowerCase(); }
+
   function populateFilters(rows) {
     var months = Array.from(new Set(rows.map(function (r) { return r.month_year; }).filter(Boolean)));
     months.sort(function (a, b) {
@@ -1163,6 +1166,26 @@
     // понятных категорий, а "Уволен(а)" вообще не появлялся (is_departed —
     // отдельный флаг, не значение current_step). Те же 4 категории, что и
     // остальной дашборд (см. statusBucket, candidateRiskInfo).
+    // Пользователь, 2026-10-15: «можно добавить фильтр ДОЛЖНОСТЬ» — список
+    // из реальных должностей в данных (по алфавиту, с числом людей).
+    // «Арт»/«АРТ» в данных — одна должность, набранная в разном регистре:
+    // ключ — нижний регистр, подпись — самое частое написание.
+    var positionGroups = {};
+    rows.forEach(function (r) {
+      var pos = (r.position || "").trim();
+      if (!pos) return;
+      var g = positionGroups[positionKey(pos)] || (positionGroups[positionKey(pos)] = { n: 0, spellings: {} });
+      g.n++;
+      g.spellings[pos] = (g.spellings[pos] || 0) + 1;
+    });
+    document.getElementById("positionFilter").innerHTML = '<option value="">Все должности</option>' +
+      Object.keys(positionGroups).map(function (k) {
+        var g = positionGroups[k];
+        var label = Object.keys(g.spellings).sort(function (a, b) { return g.spellings[b] - g.spellings[a]; })[0];
+        return { k: k, label: label, n: g.n };
+      }).sort(function (a, b) { return a.label.localeCompare(b.label, "ru"); }).map(function (o) {
+        return '<option value="' + esc(o.k) + '">' + esc(o.label) + " (" + o.n + ")</option>";
+      }).join("");
     var statusSel = document.getElementById("statusFilter");
     statusSel.innerHTML = '<option value="">Все статусы</option>' +
       '<option value="preboarding">Пребординг</option>' +
@@ -1185,11 +1208,13 @@
     var month = document.getElementById("monthFilter").value;
     var status = document.getElementById("statusFilter").value;
     var source = document.getElementById("sourceFilter").value;
+    var position = document.getElementById("positionFilter").value;
     var sortBy = document.getElementById("sortBy").value;
     var rows = allRows.filter(function (r) {
       if (month && r.month_year !== month) return false;
       if (status && statusBucket(r) !== status) return false;
       if (source && r.source_sheet !== source) return false;
+      if (position && positionKey(r.position) !== position) return false;
       if (q) {
         var hay = (r.full_name + " " + r.manager_full_name + " " + r.mentor_full_name + " " + r.object_name + " " + r.position).toLowerCase();
         if (hay.indexOf(q) === -1) return false;
@@ -1320,8 +1345,9 @@
     var month = document.getElementById("monthFilter").value;
     var status = document.getElementById("statusFilter").value;
     var source = document.getElementById("sourceFilter").value;
+    var position = document.getElementById("positionFilter").value;
     var showArchived = document.getElementById("showArchived").checked;
-    var active = [search, month, status, source].filter(Boolean).length + (showArchived ? 1 : 0);
+    var active = [search, month, status, source, position].filter(Boolean).length + (showArchived ? 1 : 0);
     var countEl = document.getElementById("filterCount");
     var clearBtn = document.getElementById("clearFiltersBtn");
     countEl.style.display = active ? "inline-flex" : "none";
@@ -1330,6 +1356,7 @@
     document.getElementById("monthFilter").classList.toggle("active", !!month);
     document.getElementById("statusFilter").classList.toggle("active", !!status);
     document.getElementById("sourceFilter").classList.toggle("active", !!source);
+    document.getElementById("positionFilter").classList.toggle("active", !!position);
   }
 
   // Воронка — три реальных этапа из БД адаптация-бота. «Новые офферы»
@@ -1750,6 +1777,7 @@
     setSel("monthFilter", p.get("month"));
     setSel("statusFilter", p.get("status"));
     setSel("sourceFilter", p.get("source"));
+    setSel("positionFilter", p.get("position"));
     setSel("sortBy", p.get("sort"));
     if (p.get("arch") === "1") document.getElementById("showArchived").checked = true;
     if (p.get("view") === "internal" || p.get("view") === "main") setView(p.get("view"));
@@ -1759,7 +1787,7 @@
     var p = new URLSearchParams();
     var q = document.getElementById("search").value.trim();
     if (q) p.set("q", q);
-    [["monthFilter", "month"], ["statusFilter", "status"], ["sourceFilter", "source"]].forEach(function (pair) {
+    [["monthFilter", "month"], ["statusFilter", "status"], ["sourceFilter", "source"], ["positionFilter", "position"]].forEach(function (pair) {
       var v = document.getElementById(pair[0]).value;
       if (v) p.set(pair[1], v);
     });
@@ -2941,7 +2969,7 @@
   updateThemeToggleButton();
 
   // ---- wiring ------------------------------------------------------------
-  ["search", "monthFilter", "statusFilter", "sourceFilter", "sortBy", "showArchived"].forEach(function (id) {
+  ["search", "monthFilter", "statusFilter", "sourceFilter", "positionFilter", "sortBy", "showArchived"].forEach(function (id) {
     var el = document.getElementById(id);
     el.addEventListener(id === "search" ? "input" : "change", render);
   });
@@ -3001,6 +3029,7 @@
     document.getElementById("monthFilter").value = "";
     document.getElementById("statusFilter").value = "";
     document.getElementById("sourceFilter").value = "";
+    document.getElementById("positionFilter").value = "";
     document.getElementById("showArchived").checked = false;
     render();
   });
