@@ -823,7 +823,7 @@
         <option value="remaining_desc">Сначала больше задач осталось</option>
       </select>
       <label class="toolbar-check" for="showArchived">
-        <input type="checkbox" id="showArchived">Показывать уволенных и завершивших ИС
+        <input type="checkbox" id="showArchived">Показывать уволенных и завершивших
       </label>
       <button class="toolbar-link" id="copyLinkBtn" type="button" title="Скопировать ссылку на этот срез — вкладка и фильтры">🔗 Ссылка на срез</button>
       <span class="filter-count" id="filterCount"></span>
@@ -1035,6 +1035,8 @@
     "is_completion_processing": 7,
     "is_completion_blocked": 7,
     "is_completed": 8,
+    "adaptation_only": 6,
+    "adaptation_completed_no_is": 6,
   };
   var PREBOARDING_TOTAL = PREBOARDING_ORDER.length; // 6
 
@@ -1059,6 +1061,8 @@
     "is_completion_processing": "Завершение ИС…",
     "is_completion_blocked": "Проблема при завершении ИС",
     "is_completed": "ИС пройден",
+    "adaptation_only": "Только адаптация, без ИС",
+    "adaptation_completed_no_is": "Завершил без ИС",
     "offer_scan_missing": "Нет скана оффера",
   };
   var BLOCKED_STEPS = {
@@ -1072,13 +1076,21 @@
   ];
   // Пребординг пройден = дошёл до трека ИС (шаг 6 включён в пребординг,
   // всё, что дальше — уже ИС).
-  var PREBOARDING_DONE_STEPS = IS_REACHED_STEPS;
+  // Пользователь, 2026-10-21 (Аня Стрига): сотрудник без ИС завершает всё
+  // на задачах адаптации — после «Поздравляем, адаптация завершена» бот
+  // переводит его в adaptation_completed_no_is. Дашборд этих шагов не
+  // знал: человек висел в верхней панели «на пребординге» и подписывался
+  // сырым ключом. Пребординг у таких людей пройден, ИС у них нет.
+  var NO_IS_STEPS = ["adaptation_only", "adaptation_completed_no_is"];
+  var PREBOARDING_DONE_STEPS = IS_REACHED_STEPS.concat(NO_IS_STEPS);
+  // Реально завершил путь: ИС пройден ИЛИ адаптация без ИС завершена.
+  function isFinishedStep(step) { return step === "is_completed" || step === "adaptation_completed_no_is"; }
 
   function stepLabel(step) {
     var text = STEP_LABELS[step] || step || "—";
     if (!step) return ["—", "neutral"];
     if (BLOCKED_STEPS[step]) return [text, "blocked"];
-    if (step === "is_completed") return [text, "done"];
+    if (isFinishedStep(step)) return [text, "done"];
     var pos = PREBOARDING_ORDER.indexOf(step);
     if (pos !== -1) return [(pos + 1) + "/" + PREBOARDING_TOTAL + " · " + text, "active"];
     if (STEP_LABELS[step]) return [text, "active"];
@@ -1266,6 +1278,8 @@
       '<option value="preboarding">Пребординг</option>' +
       '<option value="is">ИС</option>' +
       '<option value="done">ИС пройден</option>' +
+      '<option value="nois">Только адаптация (без ИС)</option>' +
+      '<option value="nois_done">Завершил без ИС</option>' +
       '<option value="departed">Уволен(а)</option>';
   }
 
@@ -1275,6 +1289,8 @@
   function statusBucket(r) {
     if (r.is_departed) return "departed";
     if (r.current_step === "is_completed") return "done";
+    if (r.current_step === "adaptation_completed_no_is") return "nois_done";
+    if (r.current_step === "adaptation_only") return "nois";
     return isPreboardingDone(r.current_step) ? "is" : "preboarding";
   }
 
@@ -1319,7 +1335,7 @@
   }
 
   function isArchivedRow(row) {
-    return row.is_departed || row.current_step === "is_completed";
+    return row.is_departed || isFinishedStep(row.current_step);
   }
 
   function render() {
@@ -1353,7 +1369,7 @@
     // «Уволен(а)» в статус-фильтре — уже осознанный запрос именно этих
     // людей, чекбокс не должен молча стирать то, что человек сам выбрал.
     var statusFilterValue = document.getElementById("statusFilter").value;
-    var showArchived = document.getElementById("showArchived").checked || statusFilterValue === "done" || statusFilterValue === "departed";
+    var showArchived = document.getElementById("showArchived").checked || statusFilterValue === "done" || statusFilterValue === "departed" || statusFilterValue === "nois_done";
     renderCards(showArchived ? rows : rows.filter(function (r) { return !isArchivedRow(r); }));
     renderRetentionStats(allRows);
     syncURL();
@@ -1387,7 +1403,7 @@
   // хотя эти карточки про ТЕКУЩИЙ операционный статус прямо сейчас, не
   // про всех, кто когда-либо проходил адаптацию (для этого есть воронка).
   function isCurrentlyActive(row) {
-    return !row.is_departed && row.current_step !== "is_completed";
+    return !row.is_departed && !isFinishedStep(row.current_step);
   }
 
   function renderStats(rows) {
@@ -1901,7 +1917,7 @@
   function buildIsTableRows(rows) {
     var today = todayISO();
     return rows.map(function (r) {
-      var live = !r.is_departed && r.current_step !== "is_completed";
+      var live = !r.is_departed && !isFinishedStep(r.current_step);
       var deadline = live ? effectiveDeadline(r) : null;
       return {
         r: r, src: r.source_sheet === "bars" ? "БАР" : "УК", name: r.full_name, pos: r.position || "",
@@ -2414,6 +2430,9 @@
     if (row.current_step === "is_completed") {
       return { pillClass: "done", pillText: "ИС пройден", note: "" };
     }
+    if (row.current_step === "adaptation_completed_no_is") {
+      return { pillClass: "done", pillText: "Завершил без ИС", note: "" };
+    }
     var pace = isPaceInfo(row);
     if (pace) {
       // Пользователь, 2026-09-17: «рано судить»/«в темпе» — убрать
@@ -2503,7 +2522,7 @@
       var isPreboardingStep = PREBOARDING_ORDER.indexOf(r.current_step) !== -1;
       var isPreboardingPassedStep = r.current_step === "step6_acknowledged" || r.current_step === "awaiting_is_deadline";
       var movedToRiskColumn = r.current_step === "is_tasks_created" || isPreboardingStep ||
-        r.current_step === "is_completed" || isPreboardingPassedStep;
+        isFinishedStep(r.current_step) || isPreboardingPassedStep;
       var statusPill = movedToRiskColumn
         ? "" : '<span class="pill ' + pillClass + '">' + esc(step[0]) + '</span>';
       // Пользователь, 2026-09-22: «Уволен(а)» тоже переехал в колонку
@@ -2670,7 +2689,7 @@
   function renderTomorrowPanel(rows) {
     var el = document.getElementById("tomorrowPanel");
     var today = todayISO();
-    var candidates = rows.filter(function (r) { return !isPreboardingDone(r.current_step); });
+    var candidates = rows.filter(function (r) { return !r.is_departed && !isPreboardingDone(r.current_step); });
 
     if (!candidates.length) {
       el.innerHTML =
@@ -2816,11 +2835,19 @@
     // если человек застрял (blocked) — именно она подсвечивается красным.
     var currentPos = STEP_POSITION.hasOwnProperty(row.current_step) ? STEP_POSITION[row.current_step] : -1;
     var isBlocked = !!BLOCKED_STEPS[row.current_step];
-    var nextIdx = -1;
-    for (var i = 0; i < MODAL_TIMELINE.length; i++) {
-      if (MODAL_TIMELINE[i].pos > currentPos) { nextIdx = i; break; }
+    // Без ИС: шкала — только пребординг + один финальный узел про адаптацию.
+    var timeline = MODAL_TIMELINE;
+    if (NO_IS_STEPS.indexOf(row.current_step) !== -1) {
+      var finished = row.current_step === "adaptation_completed_no_is";
+      timeline = MODAL_TIMELINE.filter(function (n) { return n.pos <= 6; }).concat([
+        { pos: finished ? 6 : 7, text: finished ? "Адаптация завершена — без ИС" : "Задачи адаптации (без ИС) выполняются" },
+      ]);
     }
-    return MODAL_TIMELINE.map(function (node, i) {
+    var nextIdx = -1;
+    for (var i = 0; i < timeline.length; i++) {
+      if (timeline[i].pos > currentPos) { nextIdx = i; break; }
+    }
+    return timeline.map(function (node, i) {
       var cls;
       if (currentPos >= node.pos) cls = "done";
       else if (i === nextIdx) cls = isBlocked ? "blocked" : "current";
