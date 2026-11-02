@@ -1902,6 +1902,8 @@
     { k: "src", label: "УК / БАР", type: "src" },
     { k: "name", label: "Сотрудник", type: "text" },
     { k: "pos", label: "Должность", type: "text" },
+    { k: "aplan", label: "План адапт.", tip: "план адаптации — дата старта по офферу", type: "date" },
+    { k: "afact", label: "Факт адапт.", tip: "факт адаптации — когда бот принял все выполненные задачи АДАПТАЦИИ", type: "date" },
     { k: "plan", label: "План ИС", tip: "по офферу", type: "date" },
     { k: "dl", label: "Дедлайн, дн.", tip: "дата завершения ИС (у продлённых — дата продления) минус сегодня", type: "dl" },
     { k: "ext", label: "Дата продления", type: "date" },
@@ -1921,6 +1923,8 @@
       var deadline = live ? effectiveDeadline(r) : null;
       return {
         r: r, src: r.source_sheet === "bars" ? "БАР" : "УК", name: r.full_name, pos: r.position || "",
+        aplan: r.start_date || null,
+        afact: r.adaptation_completed_at ? String(r.adaptation_completed_at).slice(0, 10) : null,
         plan: r.is_end_date || null, dl: deadline ? daysBetweenISO(today, deadline) : null,
         ext: r.extended_until || null,
         done: r.current_step === "is_completed" && r.completed_at ? String(r.completed_at).slice(0, 10) : null,
@@ -1988,10 +1992,10 @@
       return '<tr data-row-idx="' + allRows.indexOf(x.r) + '">' + tds + "</tr>";
     }).join("");
     var sum = function (k) { return view.reduce(function (s, x) { return s + x[k]; }, 0); };
-    var foot = "<tr><td colspan=\"7\">Итого · " + view.length + " чел.</td>" +
+    var foot = "<tr><td colspan=\"9\">Итого · " + view.length + " чел.</td>" +
       ["total", "remaining", "admitted", "overdue", "defended"].map(function (k) { return "<td>" + sum(k) + "</td>"; }).join("") + "</tr>";
     var tbl = document.getElementById("isTable");
-    tbl.querySelector("tbody").innerHTML = body || '<tr><td colspan="12" class="muted" style="text-align:center;padding:1.2rem">Никого не нашлось по этим фильтрам.</td></tr>';
+    tbl.querySelector("tbody").innerHTML = body || '<tr><td colspan="14" class="muted" style="text-align:center;padding:1.2rem">Никого не нашлось по этим фильтрам.</td></tr>';
     tbl.querySelector("tfoot").innerHTML = foot;
     document.getElementById("isTableCount").textContent = "Показано " + view.length + " из " + isTable.rows.length;
     tbl.querySelectorAll("tr.labels th").forEach(function (th) {
