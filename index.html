@@ -801,7 +801,13 @@
          кнопку «Выйти» (была здесь же) убрали — она уже есть в шапке. -->
     <div class="toolbar fade-in">
       <input type="search" id="search" placeholder="Поиск: ФИО, руководитель, регион…">
-      <select id="monthFilter"><option value="">Все месяцы</option></select>
+      <div class="multi" id="monthFilter">
+        <button type="button" class="multi-btn" id="monthBtn" aria-haspopup="listbox" aria-expanded="false">Все месяцы</button>
+        <div class="multi-pop" id="monthPop" style="width: 230px" hidden>
+          <div class="multi-list" id="monthList" role="listbox" aria-multiselectable="true"></div>
+          <div class="multi-foot"><span id="monthHint"></span><button type="button" id="monthReset">Сбросить</button></div>
+        </div>
+      </div>
       <select id="statusFilter"><option value="">Все статусы</option></select>
       <select id="sourceFilter">
         <option value="">УК и Бары</option>
@@ -1238,15 +1244,48 @@
     }
   }
 
+  // Пользователь, 2026-11-18: «фильтр месяцы — чтоб можно было выбрать
+  // несколько (как должности)». Ключ — month_year как есть ("07.2026").
+  var monthOptions = [];
+  var monthSelected = {};
+  function selectedMonthKeys() { return Object.keys(monthSelected); }
+  function updateMonthBtn() {
+    var keys = selectedMonthKeys();
+    var label = "Все месяцы";
+    if (keys.length === 1) label = keys[0];
+    else if (keys.length > 1) label = "Месяцы: " + keys.length;
+    var btn = document.getElementById("monthBtn");
+    btn.textContent = label;
+    btn.classList.toggle("active", keys.length > 0);
+    document.getElementById("monthHint").textContent = keys.length ? "Выбрано: " + keys.length : "Можно выбрать несколько";
+  }
+  function renderMonthList() {
+    document.getElementById("monthList").innerHTML = monthOptions.map(function (o) {
+      return '<label class="multi-item" role="option"><input type="checkbox" data-k="' + esc(o.k) + '"' + (monthSelected[o.k] ? " checked" : "") + '>' +
+        '<span>' + esc(o.k) + '</span><span class="cnt">' + o.n + '</span></label>';
+    }).join("");
+  }
+  function setMonthPopOpen(open) {
+    var pop = document.getElementById("monthPop");
+    var btn = document.getElementById("monthBtn");
+    pop.hidden = !open;
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) {
+      var fitsRight = btn.getBoundingClientRect().left + pop.offsetWidth <= window.innerWidth - 8;
+      pop.style.left = fitsRight ? "0" : "auto";
+      pop.style.right = fitsRight ? "auto" : "0";
+    }
+  }
+
   function populateFilters(rows) {
-    var months = Array.from(new Set(rows.map(function (r) { return r.month_year; }).filter(Boolean)));
-    months.sort(function (a, b) {
+    var monthCounts = {};
+    rows.forEach(function (r) { if (r.month_year) monthCounts[r.month_year] = (monthCounts[r.month_year] || 0) + 1; });
+    monthOptions = Object.keys(monthCounts).sort(function (a, b) {
       var pa = a.split("."), pb = b.split(".");
       return (pb[1] + pb[0]).localeCompare(pa[1] + pa[0]);
-    });
-    var monthSel = document.getElementById("monthFilter");
-    monthSel.innerHTML = '<option value="">Все месяцы</option>' +
-      months.map(function (m) { return '<option value="' + m + '">' + m + '</option>'; }).join("");
+    }).map(function (m) { return { k: m, n: monthCounts[m] }; });
+    renderMonthList();
+    updateMonthBtn();
 
     // Пользователь, 2026-09-29 (реальный случай, Аня Стрига): список
     // "Все статусы" раньше строился из СЫРЫХ current_step — конкретные
@@ -1296,13 +1335,13 @@
 
   function filteredRows() {
     var q = document.getElementById("search").value.trim().toLowerCase();
-    var month = document.getElementById("monthFilter").value;
+    var monthKeys = selectedMonthKeys();
     var status = document.getElementById("statusFilter").value;
     var source = document.getElementById("sourceFilter").value;
     var positionKeys = selectedPositionKeys();
     var sortBy = document.getElementById("sortBy").value;
     var rows = allRows.filter(function (r) {
-      if (month && r.month_year !== month) return false;
+      if (monthKeys.length && !monthSelected[r.month_year]) return false;
       if (status && statusBucket(r) !== status) return false;
       if (source && r.source_sheet !== source) return false;
       if (positionKeys.length && !positionSelected[positionKey(r.position)]) return false;
@@ -1378,8 +1417,10 @@
   function renderPeriodChip() {
     var chip = document.getElementById("periodChip");
     if (!chip) return;
-    var month = document.getElementById("monthFilter").value;
-    var label = month ? "Данные за " + month : "Данные за всё время";
+    var monthKeys = selectedMonthKeys();
+    var label = !monthKeys.length ? "Данные за всё время"
+      : monthKeys.length === 1 ? "Данные за " + monthKeys[0]
+      : "Данные за " + monthKeys.length + " мес.";
     chip.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' + esc(label);
     document.getElementById("funnelPeriod").textContent = label;
   }
@@ -1433,18 +1474,17 @@
 
   function updateFilterIndicator() {
     var search = document.getElementById("search").value.trim();
-    var month = document.getElementById("monthFilter").value;
     var status = document.getElementById("statusFilter").value;
     var source = document.getElementById("sourceFilter").value;
     var positionActive = selectedPositionKeys().length > 0;
+    var monthActive = selectedMonthKeys().length > 0;
     var showArchived = document.getElementById("showArchived").checked;
-    var active = [search, month, status, source].filter(Boolean).length + (positionActive ? 1 : 0) + (showArchived ? 1 : 0);
+    var active = [search, status, source].filter(Boolean).length + (positionActive ? 1 : 0) + (monthActive ? 1 : 0) + (showArchived ? 1 : 0);
     var countEl = document.getElementById("filterCount");
     var clearBtn = document.getElementById("clearFiltersBtn");
     countEl.style.display = active ? "inline-flex" : "none";
     countEl.textContent = active ? "Фильтры: " + active : "";
     clearBtn.style.display = active ? "inline-flex" : "none";
-    document.getElementById("monthFilter").classList.toggle("active", !!month);
     document.getElementById("statusFilter").classList.toggle("active", !!status);
     document.getElementById("sourceFilter").classList.toggle("active", !!source);
   }
@@ -1864,7 +1904,11 @@
       if (v && Array.prototype.some.call(el.options, function (o) { return o.value === v; })) el.value = v;
     };
     if (p.get("q")) document.getElementById("search").value = p.get("q");
-    setSel("monthFilter", p.get("month"));
+    p.getAll("month").forEach(function (k) {
+      if (monthOptions.some(function (o) { return o.k === k; })) monthSelected[k] = true;
+    });
+    renderMonthList();
+    updateMonthBtn();
     setSel("statusFilter", p.get("status"));
     setSel("sourceFilter", p.get("source"));
     p.getAll("position").forEach(function (k) {
@@ -1881,10 +1925,11 @@
     var p = new URLSearchParams();
     var q = document.getElementById("search").value.trim();
     if (q) p.set("q", q);
-    [["monthFilter", "month"], ["statusFilter", "status"], ["sourceFilter", "source"]].forEach(function (pair) {
+    [["statusFilter", "status"], ["sourceFilter", "source"]].forEach(function (pair) {
       var v = document.getElementById(pair[0]).value;
       if (v) p.set(pair[1], v);
     });
+    selectedMonthKeys().forEach(function (k) { p.append("month", k); });
     selectedPositionKeys().forEach(function (k) { p.append("position", k); });
     var sort = document.getElementById("sortBy").value;
     if (sort && sort !== "overdue_desc") p.set("sort", sort);
@@ -3079,7 +3124,7 @@
   updateThemeToggleButton();
 
   // ---- wiring ------------------------------------------------------------
-  ["search", "monthFilter", "statusFilter", "sourceFilter", "sortBy", "showArchived"].forEach(function (id) {
+  ["search", "statusFilter", "sourceFilter", "sortBy", "showArchived"].forEach(function (id) {
     var el = document.getElementById(id);
     el.addEventListener(id === "search" ? "input" : "change", render);
   });
@@ -3151,18 +3196,42 @@
     updatePositionBtn();
     render();
   });
+  document.getElementById("monthBtn").addEventListener("click", function () {
+    setMonthPopOpen(document.getElementById("monthPop").hidden);
+  });
+  document.getElementById("monthList").addEventListener("change", function (e) {
+    var k = e.target.getAttribute("data-k");
+    if (!k) return;
+    if (e.target.checked) monthSelected[k] = true; else delete monthSelected[k];
+    updateMonthBtn();
+    render();
+  });
+  document.getElementById("monthReset").addEventListener("click", function () {
+    monthSelected = {};
+    renderMonthList();
+    updateMonthBtn();
+    render();
+  });
   document.addEventListener("click", function (e) {
     if (!e.target.closest("#positionFilter")) setPositionPopOpen(false);
+    if (!e.target.closest("#monthFilter")) setMonthPopOpen(false);
   });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && !document.getElementById("positionPop").hidden) {
+    if (e.key !== "Escape") return;
+    if (!document.getElementById("positionPop").hidden) {
       setPositionPopOpen(false);
       document.getElementById("positionBtn").focus();
+    }
+    if (!document.getElementById("monthPop").hidden) {
+      setMonthPopOpen(false);
+      document.getElementById("monthBtn").focus();
     }
   });
   document.getElementById("clearFiltersBtn").addEventListener("click", function () {
     document.getElementById("search").value = "";
-    document.getElementById("monthFilter").value = "";
+    monthSelected = {};
+    renderMonthList();
+    updateMonthBtn();
     document.getElementById("statusFilter").value = "";
     document.getElementById("sourceFilter").value = "";
     positionSelected = {};
