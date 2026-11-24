@@ -280,6 +280,7 @@
   .multi-item input { accent-color: var(--accent); cursor: pointer; flex: none; }
   .multi-item .cnt { margin-left: auto; color: var(--text-faint); font-size: 0.72rem; flex: none; }
   .multi-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; font-size: 0.74rem; color: var(--text-faint); }
+  .multi-acts { display: flex; gap: 0.8rem; }
   .multi-foot button { font: inherit; font-size: 0.76rem; color: var(--accent-strong); background: none; border: 0; cursor: pointer; padding: 0; }
   .toolbar .spacer { flex: 1; }
   /* Пользователь, 2026-09-24: «по умолчанию не показывались завершенные
@@ -813,7 +814,7 @@
         <button type="button" class="multi-btn" id="monthBtn" aria-haspopup="listbox" aria-expanded="false">Все месяцы</button>
         <div class="multi-pop" id="monthPop" style="width: 230px" hidden>
           <div class="multi-list" id="monthList" role="listbox" aria-multiselectable="true"></div>
-          <div class="multi-foot"><span id="monthHint"></span><button type="button" id="monthReset">Сбросить</button></div>
+          <div class="multi-foot"><span id="monthHint"></span><span class="multi-acts"><button type="button" id="monthAll">Выбрать все</button><button type="button" id="monthReset">Снять все</button></span></div>
         </div>
       </div>
       <select id="statusFilter"><option value="">Все статусы</option></select>
@@ -827,7 +828,7 @@
         <div class="multi-pop" id="positionPop" hidden>
           <input type="search" id="positionSearch" placeholder="Найти должность…">
           <div class="multi-list" id="positionList" role="listbox" aria-multiselectable="true"></div>
-          <div class="multi-foot"><span id="positionHint"></span><button type="button" id="positionReset">Сбросить</button></div>
+          <div class="multi-foot"><span id="positionHint"></span><span class="multi-acts"><button type="button" id="positionAll">Выбрать все</button><button type="button" id="positionReset">Снять все</button></span></div>
         </div>
       </div>
       <select id="sortBy">
@@ -1215,8 +1216,45 @@
   var positionOptions = [];
   var positionSelected = {};
   function selectedPositionKeys() { return Object.keys(positionSelected); }
+  // Пользователь, 2026-11-24: в «Должностях» только те, что есть в срезе
+  // остальных фильтров (месяцы, УК/БАР, статус, поиск) — как в Google
+  // Таблицах. Выбранная, но скрытая должность на фильтр не влияет:
+  // действуют выбранные из доступных. Сырой выбор хранится — вернётся,
+  // когда должность снова появится в списке (и уходит в ссылку на срез).
+  function effectivePositionKeys() {
+    var avail = {};
+    positionOptions.forEach(function (o) { avail[o.k] = true; });
+    return selectedPositionKeys().filter(function (k) { return avail[k]; });
+  }
+  function buildPositionOptions(rows) {
+    // «Арт»/«АРТ» в данных — одна должность в разном регистре: ключ —
+    // нижний регистр, подпись — самое частое написание.
+    var positionGroups = {};
+    rows.forEach(function (r) {
+      var pos = (r.position || "").trim();
+      if (!pos) return;
+      var g = positionGroups[positionKey(pos)] || (positionGroups[positionKey(pos)] = { n: 0, spellings: {} });
+      g.n++;
+      g.spellings[pos] = (g.spellings[pos] || 0) + 1;
+    });
+    return Object.keys(positionGroups).map(function (k) {
+      var g = positionGroups[k];
+      var label = Object.keys(g.spellings).sort(function (a, b) { return g.spellings[b] - g.spellings[a]; })[0];
+      return { k: k, label: label, n: g.n };
+    }).sort(function (a, b) { return a.label.localeCompare(b.label, "ru"); });
+  }
+  var positionOptionsSig = "";
+  function refreshPositionOptions() {
+    var f = readFilters();
+    positionOptions = buildPositionOptions(allRows.filter(function (r) { return rowPasses(r, f); }));
+    // Список перерисовываем только если он изменился — иначе клик по
+    // галочке сбрасывал бы прокрутку.
+    var sig = positionOptions.map(function (o) { return o.k + ":" + o.n; }).join("|");
+    if (sig !== positionOptionsSig) { positionOptionsSig = sig; renderPositionList(); }
+    updatePositionBtn();
+  }
   function updatePositionBtn() {
-    var keys = selectedPositionKeys();
+    var keys = effectivePositionKeys();
     var btn = document.getElementById("positionBtn");
     var label = "Все должности";
     if (keys.length === 1) {
@@ -1229,9 +1267,12 @@
     btn.classList.toggle("active", keys.length > 0);
     document.getElementById("positionHint").textContent = keys.length ? "Выбрано: " + keys.length : "Можно выбрать несколько";
   }
-  function renderPositionList() {
+  function visiblePositionOptions() {
     var q = document.getElementById("positionSearch").value.trim().toLowerCase();
-    var html = positionOptions.filter(function (o) { return !q || o.label.toLowerCase().indexOf(q) !== -1; }).map(function (o) {
+    return positionOptions.filter(function (o) { return !q || o.label.toLowerCase().indexOf(q) !== -1; });
+  }
+  function renderPositionList() {
+    var html = visiblePositionOptions().map(function (o) {
       return '<label class="multi-item" role="option"><input type="checkbox" data-k="' + esc(o.k) + '"' + (positionSelected[o.k] ? " checked" : "") + '>' +
         '<span>' + esc(o.label) + '</span><span class="cnt">' + o.n + '</span></label>';
     }).join("");
@@ -1305,19 +1346,7 @@
     // из реальных должностей в данных (по алфавиту, с числом людей).
     // «Арт»/«АРТ» в данных — одна должность, набранная в разном регистре:
     // ключ — нижний регистр, подпись — самое частое написание.
-    var positionGroups = {};
-    rows.forEach(function (r) {
-      var pos = (r.position || "").trim();
-      if (!pos) return;
-      var g = positionGroups[positionKey(pos)] || (positionGroups[positionKey(pos)] = { n: 0, spellings: {} });
-      g.n++;
-      g.spellings[pos] = (g.spellings[pos] || 0) + 1;
-    });
-    positionOptions = Object.keys(positionGroups).map(function (k) {
-      var g = positionGroups[k];
-      var label = Object.keys(g.spellings).sort(function (a, b) { return g.spellings[b] - g.spellings[a]; })[0];
-      return { k: k, label: label, n: g.n };
-    }).sort(function (a, b) { return a.label.localeCompare(b.label, "ru"); });
+    positionOptions = buildPositionOptions(rows);
     renderPositionList();
     updatePositionBtn();
     var statusSel = document.getElementById("statusFilter");
@@ -1341,22 +1370,33 @@
     return isPreboardingDone(r.current_step) ? "is" : "preboarding";
   }
 
+  // Все фильтры тулбара, кроме должности (её список строится по остальным).
+  function readFilters() {
+    return {
+      q: document.getElementById("search").value.trim().toLowerCase(),
+      monthKeys: selectedMonthKeys(),
+      status: document.getElementById("statusFilter").value,
+      source: document.getElementById("sourceFilter").value,
+    };
+  }
+  function rowPasses(r, f) {
+    if (f.monthKeys.length && !monthSelected[r.month_year]) return false;
+    if (f.status && statusBucket(r) !== f.status) return false;
+    if (f.source && r.source_sheet !== f.source) return false;
+    if (f.q) {
+      var hay = (r.full_name + " " + r.manager_full_name + " " + r.mentor_full_name + " " + r.object_name + " " + r.position).toLowerCase();
+      if (hay.indexOf(f.q) === -1) return false;
+    }
+    return true;
+  }
+
   function filteredRows() {
-    var q = document.getElementById("search").value.trim().toLowerCase();
-    var monthKeys = selectedMonthKeys();
-    var status = document.getElementById("statusFilter").value;
-    var source = document.getElementById("sourceFilter").value;
-    var positionKeys = selectedPositionKeys();
     var sortBy = document.getElementById("sortBy").value;
+    var f = readFilters();
+    var positionKeys = effectivePositionKeys();
     var rows = allRows.filter(function (r) {
-      if (monthKeys.length && !monthSelected[r.month_year]) return false;
-      if (status && statusBucket(r) !== status) return false;
-      if (source && r.source_sheet !== source) return false;
+      if (!rowPasses(r, f)) return false;
       if (positionKeys.length && !positionSelected[positionKey(r.position)]) return false;
-      if (q) {
-        var hay = (r.full_name + " " + r.manager_full_name + " " + r.mentor_full_name + " " + r.object_name + " " + r.position).toLowerCase();
-        if (hay.indexOf(q) === -1) return false;
-      }
       return true;
     });
     var sorters = {
@@ -1388,6 +1428,7 @@
   function render() {
     chartLists = {};
     chartListSeq = 0;
+    refreshPositionOptions();
     var rows = filteredRows();
     renderPeriodChip();
     updateFilterIndicator();
@@ -1484,7 +1525,7 @@
     var search = document.getElementById("search").value.trim();
     var status = document.getElementById("statusFilter").value;
     var source = document.getElementById("sourceFilter").value;
-    var positionActive = selectedPositionKeys().length > 0;
+    var positionActive = effectivePositionKeys().length > 0;
     var monthActive = selectedMonthKeys().length > 0;
     var showArchived = document.getElementById("showArchived").checked;
     var active = [search, status, source].filter(Boolean).length + (positionActive ? 1 : 0) + (monthActive ? 1 : 0) + (showArchived ? 1 : 0);
@@ -3215,8 +3256,22 @@
     updatePositionBtn();
     render();
   });
+  document.getElementById("positionAll").addEventListener("click", function () {
+    // Как в Google Таблицах: «Выбрать все» — все показанные в списке
+    // (при поиске — только найденные).
+    visiblePositionOptions().forEach(function (o) { positionSelected[o.k] = true; });
+    renderPositionList();
+    updatePositionBtn();
+    render();
+  });
   document.getElementById("positionReset").addEventListener("click", function () {
-    positionSelected = {};
+    // «Снять все» — показанные в списке (при поиске — только найденные);
+    // без поиска — весь выбор, включая скрытые должности.
+    if (document.getElementById("positionSearch").value.trim()) {
+      visiblePositionOptions().forEach(function (o) { delete positionSelected[o.k]; });
+    } else {
+      positionSelected = {};
+    }
     renderPositionList();
     updatePositionBtn();
     render();
@@ -3228,6 +3283,12 @@
     var k = e.target.getAttribute("data-k");
     if (!k) return;
     if (e.target.checked) monthSelected[k] = true; else delete monthSelected[k];
+    updateMonthBtn();
+    render();
+  });
+  document.getElementById("monthAll").addEventListener("click", function () {
+    monthOptions.forEach(function (o) { monthSelected[o.k] = true; });
+    renderMonthList();
     updateMonthBtn();
     render();
   });
