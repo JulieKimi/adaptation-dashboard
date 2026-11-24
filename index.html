@@ -578,6 +578,14 @@
   .eval-circle .ring.mid { background: var(--status-yellow-soft); color: var(--status-yellow); border-color: color-mix(in srgb, var(--status-yellow) 35%, transparent); }
   .eval-circle .ring.low { background: var(--danger-soft); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); }
   .eval-circle .ring.pending { background: var(--neutral-pill-bg); color: var(--text-faint); font-size: 0.6rem; }
+  /* Пользователь, 2026-11-24: повторный заход — Культ адаптацию повторно не
+     оценивает («н/п», не «ждём оценку»). Пунктир отличает от пустого «—». */
+  .eval-circle .ring.na { background: transparent; color: var(--text-faint); border: 2px dashed var(--border); font-size: 0.56rem; font-weight: 600; }
+  .repeat-chip {
+    display: inline-flex; font-family: var(--font-display); font-weight: 700; font-size: 0.58rem; text-transform: uppercase;
+    letter-spacing: 0.02em; border-radius: 999px; padding: 0.18rem 0.5rem; white-space: nowrap;
+    background: var(--neutral-pill-bg); color: var(--neutral-pill-fg);
+  }
 
   .candidate-meta { grid-area: meta; font-size: 0.68rem; color: var(--text-faint); text-align: right; line-height: 1.6; }
   .candidate-meta b { color: var(--text-muted); font-weight: 600; }
@@ -2534,6 +2542,9 @@
         ? '<span class="is-signal-pill ' + risk.pillClass + '">' + esc(risk.pillText) + '</span>' +
           (risk.note ? '<span class="role" style="margin:0">' + esc(risk.note) + '</span>' : "")
         : "";
+      var repeatChip = r.is_repeat
+        ? '<span class="repeat-chip" title="Повторный заход — оценки прошлого захода в карточке, в «Прошлых заходах»">Повторно</span>'
+        : "";
       // Пользователь, 2026-09-24: «где рук и наст одно и то же лицо —
       // указывать одной строкой» — раньше показывали "рук. Имя" и
       // "наст. Имя" отдельными строками даже когда это один человек.
@@ -2544,7 +2555,7 @@
         : '<p class="manager-line">' + esc(r.manager_full_name ? "рук. " + r.manager_full_name : "руководитель не указан") + '</p>' +
           (r.mentor_full_name ? '<p class="mentor-line">наст. ' + esc(r.mentor_full_name) + '</p>' : "");
       var idBlock = '<div class="name-block-wrap">' +
-        '<div class="name-block"><div class="name-row"><p class="name">' + esc(r.full_name) + '</p>' + riskChip + '</div>' +
+        '<div class="name-block"><div class="name-row"><p class="name">' + esc(r.full_name) + '</p>' + riskChip + repeatChip + '</div>' +
         '<p class="role">' + esc(r.position) + (r.object_name ? " · " + esc(r.object_name) : "") + '</p>' +
         managerMentorLines +
         '</div></div>';
@@ -2617,9 +2628,14 @@
       var evalsHtml = '<div class="candidate-evals">' +
         [["Культ", r.eval_alena_avg], ["Рук", r.eval_manager_avg], ["РАиО", r.eval_anya_avg]].map(function (pair) {
           var who = pair[0], avg = pair[1];
-          var ring = avg == null
-            ? '<div class="ring pending">—</div>'
-            : '<div class="ring ' + (avg >= 4 ? "good" : avg >= 3 ? "mid" : "low") + '">' + avg.toFixed(1) + '</div>';
+          var ring;
+          if (avg == null && r.is_repeat && who === "Культ") {
+            ring = '<div class="ring na" title="Повторный заход — Культ адаптацию повторно не оценивает">н/п</div>';
+          } else if (avg == null) {
+            ring = '<div class="ring pending">—</div>';
+          } else {
+            ring = '<div class="ring ' + (avg >= 4 ? "good" : avg >= 3 ? "mid" : "low") + '">' + avg.toFixed(1) + '</div>';
+          }
           return '<div class="eval-circle">' + ring + '<div class="who">' + who + '</div></div>';
         }).join("") +
         '</div>';
@@ -2924,10 +2940,16 @@
         metaParts.push("задач " + (h.tasks_defended || 0) + "/" + h.tasks_total);
       }
       if (h.manager_full_name) metaParts.push("рук. " + h.manager_full_name);
+      var evalLine = "";
+      if (h.eval_averages) {
+        var evalParts = Object.keys(EVALUATOR_LABEL).filter(function (k) { return h.eval_averages[k] != null; })
+          .map(function (k) { return EVALUATOR_LABEL[k] + " " + Number(h.eval_averages[k]).toFixed(1); });
+        if (evalParts.length) evalLine = '<div class="h-meta">Оценки: ' + esc(evalParts.join(" · ")) + '</div>';
+      }
       return '<div class="modal-history-row">' +
         '<div class="h-top"><span class="h-pos">' + esc(h.position || row.position) + '</span>' +
         '<span class="h-outcome">' + esc(h.outcome || "") + '</span></div>' +
-        '<div class="h-meta">' + esc(metaParts.join(" · ")) + '</div>' +
+        '<div class="h-meta">' + esc(metaParts.join(" · ")) + '</div>' + evalLine +
         '</div>';
     }).join("");
     return '<div class="modal-history"><h4>Прошлые заходы</h4>' + rowsHtml + '</div>';
@@ -2967,14 +2989,17 @@
   // по клику — тот же порядок, что и у кружков в строке списка.
   var EVALUATOR_LABEL = { alena: "Культ", manager: "Рук", anya: "РАиО" };
   function renderModalEvaluations(row) {
+    var repeatNote = row.is_repeat
+      ? '<div class="modal-tasks-empty" style="margin-bottom:0.6rem">Повторный заход: Культ адаптацию повторно не оценивает. Оценки прошлого захода — ниже, в «Прошлых заходах».</div>'
+      : "";
     if (!row.evaluations || !row.evaluations.length) {
-      return '<div class="modal-tasks-empty">Оценок пока нет.</div>';
+      return repeatNote + '<div class="modal-tasks-empty">' + (row.is_repeat ? "Оценок этого захода пока нет." : "Оценок пока нет.") + '</div>';
     }
     var byEvaluator = {};
     row.evaluations.forEach(function (e) {
       (byEvaluator[e.evaluator] = byEvaluator[e.evaluator] || []).push(e);
     });
-    return Object.keys(EVALUATOR_LABEL).filter(function (key) { return byEvaluator[key]; }).map(function (key) {
+    return repeatNote + Object.keys(EVALUATOR_LABEL).filter(function (key) { return byEvaluator[key]; }).map(function (key) {
       var items = byEvaluator[key];
       var scored = items.filter(function (e) { return e.score != null; });
       var avg = scored.length ? (scored.reduce(function (s, e) { return s + e.score; }, 0) / scored.length).toFixed(1) : null;
